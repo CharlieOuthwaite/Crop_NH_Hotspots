@@ -19,6 +19,7 @@
 
 # RStudio files
 .Rproj.user/
+Crop_NH_Hotspots.Rproj
 
 # produced vignettes
 vignettes/*.html
@@ -37,3 +38,11 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+.Rproj.user
+
+# folders
+0_data/
+1_PrepareCropLayers/
+2_PrepareNaturalHabitatLayer/
+3_PrepareFAOData/
+4_Country_NH_summaries/
