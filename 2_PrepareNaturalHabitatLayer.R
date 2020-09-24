@@ -25,7 +25,7 @@ plot(NatHab)
 # load the binary crop map
 CropDist <- raster(paste0(dataDir2, "CroplandBinary.tif"))
 
-# match extents (?)
+# match extents (?) (but they already have the same extent)
 NatHab <- raster::extend(NatHab, CropDist)
 
 # creates a map of the natural habitat values in just the areas of cropland
@@ -38,7 +38,7 @@ plot(NatHabCrop)
 writeRaster(x = NatHabCrop,filename = paste(outDir, "NH_Cropland_Area.tif",sep=""), format="GTiff")
 
 
-# create a figure of NH in cropland values that are binned.
+### create a figure of NH in cropland values that are binned. ###
 
 # need to reproject for mapping with country polygons
 crs(NatHabCrop)
@@ -48,12 +48,26 @@ wgs84 <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
 
 # cropping slightly as get a reprojection error otherwise
 NatHabCrop_proj <- NatHabCrop
+
+# try cropping the extent to the same as the world map
+data(wrld_simpl)
+NatHabCrop_cropped <- crop(NatHabCrop, wrld_simpl)
+extent(NatHabCrop_cropped)
+
 extent(NatHabCrop_proj) <- c(xmin= -17372530, xmax= 17372470, ymin= 0.99*(-6357770), ymax= 0.99*(7347230))
 
 # reproject to desired crs
-NatHabCrop_proj <- projectRaster(from = NatHabCrop_proj, crs = wgs84, res = 0.0518)
+NatHabCrop_proj <- projectRaster(from = NatHabCrop, crs = wgs84
+                                 #, res = 0.04166667
+                                 ) 
 
 #plot(NatHabCrop_proj)
+
+# save the raster
+writeRaster(x = NatHabCrop_proj,filename = paste(outDir, "NH_Cropland_Area_WGS84.tif",sep=""), format="GTiff", overwrite = T)
+
+
+### create a plot with binned values for prop NH ###
 
 # aggregating for faster plotting
 NatHabCrop2 <- aggregate(NatHabCrop_proj, fact = 2)
@@ -103,6 +117,6 @@ ggplot() +
         panel.grid = element_blank(), 
         legend.position = "bottom")  
 
-ggsave(filename = paste0(outDir, "/Map_crop_NH.pdf"), height = 5, width = 7)
+ggsave(filename = paste0(outDir, "/Map_crop_NH.pdf"))
 
 
