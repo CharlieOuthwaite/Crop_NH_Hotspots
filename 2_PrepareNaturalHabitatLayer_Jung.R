@@ -27,10 +27,14 @@ files
 # 12 maps
 hab_maps <- stack(paste0(dataDir, "/lvl1_frac_1km_ver004/lvl1_frac_1km_ver004/", files))
 
-# which are the NH ones in files: 1, 6,7,8, 9
+# have a little look
+plot(hab_maps[[9]]) # wetlands includes large bodies of water so probably don't want to include that
+
+
+# which are the NH ones in files: 1, 6,7,8
 # (10 and 11 = rocky and desert?)
 # remove the non-natural habitat ones
-hab_maps <- hab_maps[[c(1,6,7,8,9)]]
+hab_maps <- hab_maps[[c(1,6,7,8)]]
 
 names(hab_maps)
 
@@ -44,7 +48,7 @@ frac_NH <- sum(hab_maps, na.rm = T)
 plot(frac_NH)
 
 # save the fractional NH map
-writeRaster(x = frac_NH,filename = paste(outDir, "Fractional_NH_Jung.tif",sep=""), format="GTiff")
+writeRaster(x = frac_NH,filename = paste(outDir, "Fractional_NH_Jung.tif",sep=""), format="GTiff", overwrite = TRUE)
 
 
 # frac_NH <- raster(paste(outDir, "Fractional_NH_Jung.tif",sep=""))
