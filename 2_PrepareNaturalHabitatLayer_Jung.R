@@ -42,21 +42,52 @@ names(hab_maps)
 # so dividing here to get the original values. 
 hab_maps <- hab_maps/1000
 
+
+# separate plot per map for reference
+pdf(file = paste0(outDir, "/Jung_NH_layers.pdf"))
+par(mfrow = c(2, 2))
+
+plot(hab_maps[[1]], main = "Forest")
+plot(hab_maps[[2]], main = "Savanna")
+plot(hab_maps[[3]], main = "Shrubland")
+plot(hab_maps[[4]], main = "Grassland")
+
+dev.off()
+
+
 # sum the rasters to get the total fractional cover of natural habitat
 frac_NH <- sum(hab_maps, na.rm = T) 
 
-plot(frac_NH)
+# plot of total NH layer
+pdf(file = paste0(outDir, "/Jung_NH_total.pdf"))
+plot(frac_NH, main = "Total NH, inc forest, savanna, shrubland and grassland")
+dev.off()
 
 # save the fractional NH map
-writeRaster(x = frac_NH,filename = paste(outDir, "Fractional_NH_Jung.tif",sep=""), format="GTiff", overwrite = TRUE)
+writeRaster(x = frac_NH,filename = paste(outDir, "Fractional_NH_Jung_four.tif",sep=""), format="GTiff", overwrite = TRUE)
+
+
+# also create a subset based on just forest and grassland
+frac_NH_2 <- sum(hab_maps[[c(1,4)]], na.rm = T) 
+
+# plot of total NH layer
+pdf(file = paste0(outDir, "/Jung_forest_grassland_total.pdf"))
+plot(frac_NH_2, main = "Total NH, inc forest and grassland")
+dev.off()
+
+# save the fractional NH map
+writeRaster(x = frac_NH_2,filename = paste(outDir, "Fractional_NH_Jung_two.tif",sep=""), format="GTiff", overwrite = TRUE)
+
 
 
 # frac_NH <- raster(paste(outDir, "Fractional_NH_Jung.tif",sep=""))
 
 
-#### Just look at NH in area where crops grown ####
-
-
+##%######################################################%##
+#                                                          #
+####     Just look at NH in area where crops grown      ####
+#                                                          #
+##%######################################################%##
 
 ## use the binary crop map as a mask to just look at NH in areas where crops are grown
 
@@ -68,23 +99,32 @@ CropDist <- raster(paste0(dataDir2, "CroplandBinary.tif"))
 # Error in if (maxy == miny) { : missing value where TRUE/FALSE needed
 # if you cut the edges this error does not occur
 # https://gis.stackexchange.com/questions/220589/error-using-projectraster-in-r-error-in-if-maxy-miny-missing-value-whe
-extent(CropDist) <- c(xmin= -17372530, xmax= 17372470, ymin= 0.99*(-6357770), ymax= 0.99*(7347230))
+#extent(CropDist) <- c(xmin= -17372530, xmax= 17372470, ymin= 0.99*(-6357770), ymax= 0.99*(7347230))
 
 # try cropping the extent rather than the above
 b <- extent(-17372530, 17372470,  0.99*(-6357770), 0.99*(7347230))
 
-# reproject the binary crop map to match up with the NH map
-CropDist_reproj <- projectRaster(CropDist, frac_NH)
+CropDist_crp <- crop(CropDist, b)
 
+# reproject the binary crop map to match up with the NH map
+CropDist_reproj <- projectRaster(CropDist_crp, frac_NH)
+# Warning message:
+# In rgdal::rawTransform(projto_int, projfrom, nrow(xy), xy[, 1],  :
+                         # 36306 projected point(s) not finite
 
 # creates a map of the natural habitat values in just the areas of cropland
 NatHabCrop <- raster::mask(x = frac_NH, mask = CropDist_reproj)
 
+plot(NatHabCrop)
 
 # save the NH in cropland map
-writeRaster(x = NatHabCrop,filename = paste(outDir, "NH_Cropland_Area_Jung.tif",sep=""), format="GTiff")
+writeRaster(x = NatHabCrop, filename = paste(outDir, "NH_Cropland_Area_Jung_four.tif",sep=""), format="GTiff")
 
+# creates a map of the natural habitat values in just the areas of cropland
+NatHabCrop2 <- raster::mask(x = frac_NH_2, mask = CropDist_reproj)
 
+# save the NH in cropland map
+writeRaster(x = NatHabCrop2, filename = paste(outDir, "NH_Cropland_Area_Jung_two.tif",sep=""), format="GTiff")
 
 ### create a figure of NH in cropland values that are binned. ###
 
@@ -95,25 +135,26 @@ crs(NatHabCrop)
 ### create a plot with binned values for prop NH ###
 
 # aggregating for faster plotting
-NatHabCrop2 <- aggregate(NatHabCrop, fact = 10)
+NatHabCrop_agg <- aggregate(NatHabCrop, fact = 10)
+#NatHabCrop_agg <- aggregate(NatHabCrop2, fact = 10)
 
 # convert to data frame for use with ggplot
-plot_data <- as.data.frame(NatHabCrop2, xy = TRUE)
+plot_data <- as.data.frame(NatHabCrop_agg, xy = TRUE)
 
 # remove NAs
-plot_data <- plot_data[!is.na(plot_data$Fractional_NH_Jung), ]
+plot_data <- plot_data[!is.na(plot_data$layer), ]
 
 # multiply by 10 to get actual % values
-plot_data$Fractional_NH_Jung <- plot_data$Fractional_NH_Jung*100
+plot_data$layer <- plot_data$layer*100
 
 # organise the percNH info into bins
 plot_data$bin <- NA
 
-plot_data[plot_data$Fractional_NH_Jung >= 0 & plot_data$Fractional_NH_Jung <= 20, 'bin'] <- "0 - 20%"
-plot_data[plot_data$Fractional_NH_Jung > 20 & plot_data$Fractional_NH_Jung <= 40, 'bin'] <- "21 - 40%"
-plot_data[plot_data$Fractional_NH_Jung > 40 & plot_data$Fractional_NH_Jung <= 60, 'bin'] <- "41 - 60%"
-plot_data[plot_data$Fractional_NH_Jung > 60 & plot_data$Fractional_NH_Jung <= 80, 'bin'] <- "61 - 80%"
-plot_data[plot_data$Fractional_NH_Jung > 80, 'bin'] <- "81 - 100%"
+plot_data[plot_data$layer >= 0 & plot_data$layer <= 20, 'bin'] <- "0 - 20%"
+plot_data[plot_data$layer > 20 & plot_data$layer <= 40, 'bin'] <- "21 - 40%"
+plot_data[plot_data$layer > 40 & plot_data$layer <= 60, 'bin'] <- "41 - 60%"
+plot_data[plot_data$layer > 60 & plot_data$layer <= 80, 'bin'] <- "61 - 80%"
+plot_data[plot_data$layer > 80, 'bin'] <- "81 - 100%"
 
 plot_data$bin <- as.factor(plot_data$bin)
 
@@ -142,7 +183,8 @@ ggplot() +
         panel.grid = element_blank(), 
         legend.position = "bottom")  
 
-ggsave(filename = paste0(outDir, "/Fugure1_Map_crop_NH_Jung.pdf"), height = 6, width = 8)
+ggsave(filename = paste0(outDir, "/Figure1_Map_crop_NH_Jung_four.pdf"), height = 6, width = 8)
+ggsave(filename = paste0(outDir, "/Figure1_Map_crop_NH_Jung_two.pdf"), height = 6, width = 8)
 
 
 
