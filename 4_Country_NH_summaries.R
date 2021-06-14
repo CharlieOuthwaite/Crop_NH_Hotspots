@@ -13,6 +13,15 @@ rm(list = ls())
 library(raster)
 library(maptools)
 library(dplyr)
+library(devtools)
+devtools::install_github("Pakillo/rgis")
+library(rgis) # fast_extract function from this package
+library(velox)
+library(parallel)
+library(sf)
+library(exactextractr) # exact_extract function from here
+library(parallel)
+
 
 
 # directories
@@ -21,10 +30,11 @@ outdir <- "4_Country_NH_summaries/"
 dir.create(outdir)
 
 # read in teh fractional natural habitat data
-NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area.tif"))
+#NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_two.tif"))
+NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_four.tif"))
 
 # convert to actual % values
-NatHabCrop <- NatHabCrop/10
+#NatHabCrop <- NatHabCrop*100
 
 # load country polygons
 data(wrld_simpl)
@@ -33,36 +43,14 @@ data(wrld_simpl)
 crs(NatHabCrop)
 crs(wrld_simpl)
 
-# reproject
-wgs84 <- CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
-NatHabCrop_proj <- NatHabCrop
-
-# edit the extent or get an error when projecting
-extent(NatHabCrop_proj) 
-
-# define new extent, slightly smaller than original extent
-new_extent <- extent(-17372530, 17372470, 0.999*(-6357770), 0.999*(7347230))
-
-# crop the raster to the smaller extent
-NatHabCrop_proj  <- crop(x = NatHabCrop_proj, y = new_extent)
-extent(NatHabCrop_proj) 
-
-# reproject 
-NatHabCrop_proj2 <- projectRaster(from = NatHabCrop_proj, crs = wgs84, res = 0.04166667) # resolution taken from another 5km grid map
-
-# save the reprojected version
-writeRaster(x = NatHabCrop_proj2,filename = paste(outdir, "NatHabCrop_wgs84.tif",sep=""), format="GTiff", overwrite = T)
-
-
-crs(NatHabCrop_proj2) 
-crs(wrld_simpl)
-
-plot(NatHabCrop_proj2)
+plot(NatHabCrop)
 plot(wrld_simpl, add = TRUE)
 
 
+# subset the country list in wrld_simpl that has cropland data in the polygon
 
-# extracting country level summaries
+
+#### extracting country level summaries ####
 
 # 1. mean proportion of natural habitat in an area with cropland
 # 2. maximum proportion of NH 
@@ -75,117 +63,190 @@ plot(wrld_simpl, add = TRUE)
 # 9. total crop production 
 
 
-
-# read in the fractional natural habitat data if not already in environment
-NatHabCrop_proj <- raster(paste0(outdir, "NatHabCrop_wgs84.tif"))
-
-plot(NatHabCrop_proj2)
-plot(wrld_simpl, add = TRUE)
-
-
 # use the country polygons in wrld_simpl to get data summaries
 
 # create dataframe to save results in
-results <- data.frame(country = wrld_simpl@data$NAME)
+results <- wrld_simpl@data$NAME
+
+# remove Antarctica
+results <- results[c(1:144, 146:246)]
+
+results <- data.frame(country = droplevels(results))
 
 
-### 1. mean proportion NH  ###
-NH_mean <- extract(x = NatHabCrop_proj, y = wrld_simpl, fun = mean, na.rm = TRUE, df = TRUE)
+# convert to sf object
+wrld_simpl_sf <- st_as_sf(wrld_simpl)
 
-results$mean_prop_NH <- NH_mean$NatHabCrop_wgs84
+# just take the features with country name to make it smaller
+wrld_simpl_sf <- wrld_simpl_sf[5]
 
+# take a look
+plot(wrld_simpl_sf)
 
-### 2. Max proportion of NH ###
-NH_min <- extract(x = NatHabCrop_proj, y = wrld_simpl, fun = min, na.rm = TRUE, df = TRUE)
-
-results$min_prop_NH <- NH_min$NatHabCrop_wgs84
-
-
-### 3. Min proportion of NH ###
-NH_max <- extract(x = NatHabCrop_proj, y = wrld_simpl, fun = max, na.rm = TRUE, df = TRUE)
-
-results$max_prop_NH <- NH_max$NatHabCrop_wgs84
+# remove antarctica 145
+wrld_simpl_sf <- wrld_simpl_sf[c(1:144, 146:246), ]
 
 
-### 4. median proportion of NH ###
-NH_median <- extract(x = NatHabCrop_proj, y = wrld_simpl, fun = median, na.rm = TRUE, df = TRUE)
 
-results$median_prop_NH <- NH_median$NatHabCrop_wgs84
+#### 1. Mean, Min, Max, Median and SD of natural habitat availability ####
 
-
-### 5. sd of prop of NH ###
-NH_sd <- extract(x = NatHabCrop_proj, y = wrld_simpl, fun = sd, na.rm = TRUE, df = TRUE)
-
-results$sd_prop_NH <- NH_sd$NatHabCrop_wgs84
+NH_sums <- exact_extract(x = NatHabCrop, y = wrld_simpl_sf, fun = c('mean', 'min', 'max', 'median', 'stdev'))
 
 
-### 6. proportion of cropland with 40% or less NH ###
+# add into the results table
+results$mean_prop_NH <- NH_sums$mean
+results$min_prop_NH <- NH_sums$min
+results$max_prop_NH <- NH_sums$max
+results$median_prop_NH <- NH_sums$median
+results$sd_prop_NH <- NH_sums$stdev
 
-prop_less_40 <- NULL
 
-for(i in 1:nrow(wrld_simpl)){
+#### 2. proportion of cropland with 40% or less NH ####
+
+countries <- wrld_simpl$NAME
+
+assess_less40 <- function(i){
   
-  x <- wrld_simpl[i,]
+  x <- wrld_simpl[wrld_simpl$NAME == i, ]
   
-  all <- extract(x = NatHabCrop_proj, y = x, df = TRUE)
+  all <- extract(x = NatHabCrop, y = x, df = TRUE)
   
-  thres <- 40
+  all <- all[!is.na(all$NH_Cropland_Area_Jung_four),]
   
-  prop <- length(all$NatHabCrop_wgs84[all$NatHabCrop_wgs84 <= thres])/ length(all$NatHabCrop_wgs84)
   
-  result <- c(as.character(x$NAME), prop)
+  if(!is.null(nrow(all))){
+    
+    
+    thres <- 0.4
+    
+    prop <- length(all$NH_Cropland_Area_Jung_four[all$NH_Cropland_Area_Jung_four <= thres])/ length(all$NH_Cropland_Area_Jung_four)
+    
+    result <- c(as.character(x$NAME), prop)
+    
+  } else result <- c(as.character(x$NAME), NA)
   
-  prop_less_40 <- rbind(prop_less_40, result)
-  
-}
-
-prop_less_40 <- as.data.frame(prop_less_40)
-
-results$prop_less_40 <- as.numeric(as.character(prop_less_40$V2))
-
-
-
-### 7. proportion of cells with cropland with 60% or more NH ###
-
-prop_more_60 <- NULL
-
-for(i in 1:nrow(wrld_simpl)){
-  
-  x <- wrld_simpl[i,]
-  
-  all <- extract(x = NatHabCrop_proj, y = x, df = TRUE)
-  
-  thres <- 60
-  
-  prop <- length(all$NatHabCrop_wgs84[all$NatHabCrop_wgs84 >= thres])/ length(all$NatHabCrop_wgs84)
-  
-  result <- c(as.character(x$NAME), prop)
-  
-  prop_more_60 <- rbind(prop_more_60, result)
+  return(result) 
   
 }
 
-prop_more_60 <- as.data.frame(prop_more_60)
 
-results$prop_more_60 <- as.numeric(as.character(prop_more_60$V2))
+# run in parallel as it takes a really long time
+numCores <- detectCores() 
+
+cl <- makeCluster(numCores)
+clusterExport(cl, c("wrld_simpl", "NatHabCrop"))
+clusterEvalQ(cl, {
+  library(raster)
+})
 
 
-write.csv(results, file = paste0(outdir, "Country_level_summaries_PARTIAL.csv"))
+start <- Sys.time()
+
+prop_less_40 <- parLapplyLB(cl, countries, assess_less40)
+
+stopCluster(cl)
+
+end <- Sys.time()
+runtime <- end-start
+runtime # 2.761624 hours for all countries
+
+# organise the outputs
+
+prop_less_40 <- t(as.data.frame(prop_less_40, row.names = NULL))
+
+colnames(prop_less_40) <- c("country", "prop_less_40")
+rownames(prop_less_40) <- NULL
+
+results <- merge(results, prop_less_40, by = "country", all.x = TRUE)
 
 
 
-# 8. area of cropland
+#### 3. proportion of cells with cropland with 60% or more NH ####
+
+
+assess_more60 <- function(i){
+  
+  x <- wrld_simpl[wrld_simpl$NAME == i, ]
+  
+  all <- extract(x = NatHabCrop, y = x, df = TRUE)
+  
+  all <- all[!is.na(all$NH_Cropland_Area_Jung_four),]
+  
+  if(!is.null(nrow(all))){
+    
+    
+    thres <- 0.6
+    
+    prop <- length(all$NH_Cropland_Area_Jung_four[all$NH_Cropland_Area_Jung_four >= thres])/ length(all$NH_Cropland_Area_Jung_four)
+    
+    result <- c(as.character(x$NAME), prop)
+    
+  } else result <- c(as.character(x$NAME), NA)
+  
+  return(result)
+  
+}
+
+# run function across all countries in parallel
+
+cl <- makeCluster(numCores)
+clusterExport(cl, c("wrld_simpl", "NatHabCrop"))
+clusterEvalQ(cl, {
+  library(raster)
+})
+
+
+start <- Sys.time()
+
+prop_more_60 <- parLapplyLB(cl, countries, assess_more60)
+
+stopCluster(cl)
+
+end <- Sys.time()
+runtime <- end-start
+runtime # 2.4 hours for all countries
+
+
+# organise the outputs
+
+prop_more_60 <- t(as.data.frame(prop_more_60, row.names = NULL))
+
+colnames(prop_more_60) <- c("country", "prop_more_60")
+rownames(prop_more_60) <- NULL
+
+results <- merge(results, prop_more_60, by = "country", all.x = TRUE)
+
+
+# convert factors
+results$prop_less_40 <- as.numeric(as.character(results$prop_less_40))
+results$prop_more_60 <- as.numeric(as.character(results$prop_more_60))
+
+
+# save the table
+write.csv(results, file = paste0(outdir, "/Country_summaries_Jung2.csv"), row.names = F)
+#write.csv(results, file = paste0(outdir, "/Country_summaries_Jung4.csv"), row.names = F)
+
+# results <- read.csv(file = paste0(outdir, "/Country_summaries_Jung.csv"))
+
+
+
+
+#### 4. area of cropland ####
 
 # this info was downloaded from http://www.fao.org/faostat/en/#data/QC
 
-dir <- "0_data"
+alldata <- "0_data"
 
-# read in the data, 2005 data but also downloaded 2018 data, which to use?
-proddata <- read.csv(paste0(dir, "/FAOSTAT_data_2005_9-24-2020.csv"))
+# which year should I be using for the production data?
+proddata <- read.csv(paste0(alldata, "/FAOSTAT_data_2015_4-30-2021.csv"))
 
-length(unique(proddata$Area)) # 214 countries
+length(unique(proddata$Area)) # 200 countries
 
-# getarea totals for each country
+
+#### subset crops to just those represented in the Eartstat data used to get the crop area map?
+
+
+# get area totals for each country
 
 # subset the data
 areaharv <- proddata[proddata$Element == "Area harvested", ]
@@ -195,16 +256,18 @@ area_ctry <- areaharv %>%
   group_by(Area) %>%
   summarize(total_area = sum(Value, na.rm = TRUE))
 
-
+# convert to character so results can be merged
 results$country <- as.character(results$country)
 
+# match up column names
 colnames(area_ctry)[1] <- "country"
 
 
 # add into results table
 results <- merge(results, area_ctry, by = "country", all.x = TRUE)
 
-results[is.na(results$total_area), ]
+# some countries will be labelled differently so take a look at NAs
+View(results[is.na(results$total_area), ])
 
 
 # fill in the gaps where country names differ
@@ -212,26 +275,32 @@ results[results$country == "Bolivia", "total_area"] <- area_ctry[area_ctry$count
 results[results$country == "Cote d'Ivoire", "total_area"] <- area_ctry[area_ctry$country == "CÃ´te d'Ivoire", "total_area"]
 results[results$country == "Cape Verde", "total_area"] <- area_ctry[area_ctry$country == "Cabo Verde", "total_area"]
 results[results$country == "Czech Republic", "total_area"] <- area_ctry[area_ctry$country == "Czechia", "total_area"]
-results[results$country == "French Guiana", "total_area"] <- area_ctry[area_ctry$country == "French Guyana", "total_area"]
+#results[results$country == "French Guiana", "total_area"] <- area_ctry[area_ctry$country == "French Guyana", "total_area"]
 results[results$country == "Hong Kong", "total_area"] <- area_ctry[area_ctry$country == "China, Hong Kong SAR", "total_area"]
 results[results$country == "Korea, Democratic People's Republic of", "total_area"] <- area_ctry[area_ctry$country == "Democratic People's Republic of Korea", "total_area"]
 results[results$country == "Korea, Republic of", "total_area"] <- area_ctry[area_ctry$country == "Republic of Korea", "total_area"]
 results[results$country == "Micronesia, Federated States of", "total_area"] <- area_ctry[area_ctry$country == "Micronesia (Federated States of)", "total_area"]
-results[results$country == "Reunion", "total_area"] <- area_ctry[area_ctry$country == "RÃ©union", "total_area"]
+#results[results$country == "Reunion", "total_area"] <- area_ctry[area_ctry$country == "RÃ©union", "total_area"]
 results[results$country == "Russia", "total_area"] <- area_ctry[area_ctry$country == "Russian Federation", "total_area"]
 results[results$country == "Taiwan", "total_area"] <- area_ctry[area_ctry$country == "China, Taiwan Province of", "total_area"]
 results[results$country == "United Kingdom", "total_area"] <- area_ctry[area_ctry$country == "United Kingdom of Great Britain and Northern Ireland", "total_area"]
 results[results$country == "United States", "total_area"] <- area_ctry[area_ctry$country == "United States of America", "total_area"]
 results[results$country == "Venezuela", "total_area"] <- area_ctry[area_ctry$country == "Venezuela (Bolivarian Republic of)", "total_area"]
-results[results$country == "Sudan", "total_area"] <- area_ctry[area_ctry$country == "Sudan (former)", "total_area"]
+#results[results$country == "Sudan", "total_area"] <- area_ctry[area_ctry$country == "Sudan (former)", "total_area"]
+results[results$country == "Libyan Arab Jamahiriya", "total_area"] <- area_ctry[area_ctry$country == "Libya", "total_area"]
+results[results$country == "Macau", "total_area"] <- area_ctry[area_ctry$country == "China, Macao SAR", "total_area"]
+results[results$country == "Swaziland", "total_area"] <- area_ctry[area_ctry$country == "Eswatini", "total_area"]
+results[results$country == "The former Yugoslav Republic of Macedonia", "total_area"] <- area_ctry[area_ctry$country == "North Macedonia", "total_area"]
 
 
-nrow(results[is.na(results$total_area), ]) # 41
+
+nrow(results[is.na(results$total_area), ]) # 48
+
+View(results[is.na(results$total_area) & !is.na(results$mean_prop_NH), ]) # 22 countries with values for NH but no production data from FAO
 
 
 
-
-# 9. total crop production - earthstat
+#### 5. total crop production ####
 
 # subset the data
 produc <- proddata[proddata$Element == "Production", ]
@@ -248,7 +317,7 @@ colnames(prod_ctry)[1] <- "country"
 # add into results table
 results <- merge(results, prod_ctry, by = "country", all.x = TRUE)
 
-results[is.na(results$total_prod), ]
+nrow(results[is.na(results$total_prod), ]) # 65
 
 
 # fill in the gaps where country names differ
@@ -256,19 +325,80 @@ results[results$country == "Bolivia", "total_prod"] <- prod_ctry[prod_ctry$count
 results[results$country == "Cote d'Ivoire", "total_prod"] <- prod_ctry[prod_ctry$country == "CÃ´te d'Ivoire", "total_prod"]
 results[results$country == "Cape Verde", "total_prod"] <- prod_ctry[prod_ctry$country == "Cabo Verde", "total_prod"]
 results[results$country == "Czech Republic", "total_prod"] <- prod_ctry[prod_ctry$country == "Czechia", "total_prod"]
-results[results$country == "French Guiana", "total_prod"] <- prod_ctry[prod_ctry$country == "French Guyana", "total_prod"]
+#results[results$country == "French Guiana", "total_prod"] <- prod_ctry[prod_ctry$country == "French Guyana", "total_prod"]
 results[results$country == "Hong Kong", "total_prod"] <- prod_ctry[prod_ctry$country == "China, Hong Kong SAR", "total_prod"]
 results[results$country == "Korea, Democratic People's Republic of", "total_prod"] <- prod_ctry[prod_ctry$country == "Democratic People's Republic of Korea", "total_prod"]
 results[results$country == "Korea, Republic of", "total_prod"] <- prod_ctry[prod_ctry$country == "Republic of Korea", "total_prod"]
 results[results$country == "Micronesia, Federated States of", "total_prod"] <- prod_ctry[prod_ctry$country == "Micronesia (Federated States of)", "total_prod"]
-results[results$country == "Reunion", "total_prod"] <- prod_ctry[prod_ctry$country == "RÃ©union", "total_prod"]
+#results[results$country == "Reunion", "total_prod"] <- prod_ctry[prod_ctry$country == "RÃ©union", "total_prod"]
 results[results$country == "Russia", "total_prod"] <- prod_ctry[prod_ctry$country == "Russian Federation", "total_prod"]
 results[results$country == "Taiwan", "total_prod"] <- prod_ctry[prod_ctry$country == "China, Taiwan Province of", "total_prod"]
 results[results$country == "United Kingdom", "total_prod"] <- prod_ctry[prod_ctry$country == "United Kingdom of Great Britain and Northern Ireland", "total_prod"]
 results[results$country == "United States", "total_prod"] <- prod_ctry[prod_ctry$country == "United States of America", "total_prod"]
 results[results$country == "Venezuela", "total_prod"] <- prod_ctry[prod_ctry$country == "Venezuela (Bolivarian Republic of)", "total_prod"]
-results[results$country == "Sudan", "total_prod"] <- prod_ctry[prod_ctry$country == "Sudan (former)", "total_prod"]
+#results[results$country == "Sudan", "total_prod"] <- prod_ctry[prod_ctry$country == "Sudan (former)", "total_prod"]
+results[results$country == "Libyan Arab Jamahiriya", "total_prod"] <- prod_ctry[prod_ctry$country == "Libya", "total_prod"]
+results[results$country == "Macau", "total_prod"] <- prod_ctry[prod_ctry$country == "China, Macao SAR", "total_prod"]
+results[results$country == "Swaziland", "total_prod"] <- prod_ctry[prod_ctry$country == "Eswatini", "total_prod"]
+results[results$country == "The former Yugoslav Republic of Macedonia", "total_prod"] <- prod_ctry[prod_ctry$country == "North Macedonia", "total_prod"]
 
 
-results[is.na(results$total_prod), ]
+nrow(results[is.na(results$total_prod), ]) # 48
+
+
+# save data
+write.csv(results, file = paste0(outdir, "Country_level_summaries_Jung2.csv"), row.names = F)
+#write.csv(results, file = paste0(outdir, "Country_level_summaries_Jung4.csv"), row.names = F)
+
+#results <- read.csv(file = paste0(outdir, "Country_level_summaries_Jung.csv"))
+
+
+
+
+
+##%######################################################%##
+#                                                          #
+####            Assessing countries at risk             ####
+#                                                          #
+##%######################################################%##
+
+
+#### Table 1: top 50 producers only ####
+
+# order countries table by production values
+
+results_prod <- results[order(results$total_prod, decreasing = T),]
+
+# subset the highest producers?
+top <- 50
+results_prod <- results_prod[1:top, ]
+
+# order by median level of NH around croplands
+results_prod_gd <- results_prod[order(results_prod$median_prop_NH, decreasing = T),] 
+results_prod_bd <- results_prod[order(results_prod$median_prop_NH, decreasing = F),]
+
+# save the ordered tables
+write.csv(results_prod_gd, file = paste0(outdir, "/Top_50_producers_ordered_medianNH_Jung4.csv"), row.names = F)
+
+
+
+
+
+
+#### table 2: based on prop GDP from Agriculture
+
+gdpdat <- read.csv(paste0(alldata, "/Macro-Statistics_Key_Indicators_E_All_Data_17-05-2021.csv"))
+
+
+# NEXT: not all countries have gross output (agriculture) data, calc these and then use something else for others?
+
+
+gdpdat_sub <- gdpdat[gdpdat$Item == "Gross Output (Agriculture)" & gdpdat$Element %in% c("Value US$") | gdpdat$Item == "Gross Domestic Product" & gdpdat$Element %in% c("Value US$"), ]
+
+results$
+
+# get country totals
+prod_ctry <- produc %>%
+  group_by(Area) %>%
+  summarize(total_prod = sum(Value, na.rm = TRUE))
 
