@@ -230,7 +230,3 @@ p3 <- plot_grid(p1, p2, nrow = 2)
 ggsave2(p3, filename = paste0(outdir, "All_biodiv_ab_sr_maps.pdf"), height = 8.27, width = 5.83, units = "in")
 
 
-# to do
-# save plots
-# change ref row to max amount of NH in dataset rather than 1
-# check the projections

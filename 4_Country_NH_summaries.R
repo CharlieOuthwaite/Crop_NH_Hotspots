@@ -5,7 +5,7 @@
 ##%######################################################%##
 
 # This script takes the global map of area of NH where crops are grown and
-# summaries, for each country, how much NH is available and other stats. 
+# summarises, for each country, how much NH is available and other stats. 
 
 rm(list = ls())
 
@@ -14,7 +14,7 @@ library(raster)
 library(maptools)
 library(dplyr)
 library(devtools)
-devtools::install_github("Pakillo/rgis")
+#devtools::install_github("Pakillo/rgis")
 library(rgis) # fast_extract function from this package
 library(velox)
 library(parallel)
@@ -29,7 +29,7 @@ datadir <- "2_PrepareNaturalHabitatLayer/"
 outdir <- "4_Country_NH_summaries/"
 dir.create(outdir)
 
-# read in teh fractional natural habitat data
+# read in the fractional natural habitat data
 #NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_two.tif"))
 NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_four.tif"))
 

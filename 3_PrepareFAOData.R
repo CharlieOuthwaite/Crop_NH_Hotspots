@@ -6,7 +6,7 @@
 
 # This code from Tim organises country level FAO data on crop production
 # area, yield and irrigation to model how yield stability is affected by
-# crop diversity and percetage of crop area irrigated. 
+# crop diversity and percentage of crop area irrigated. 
 
 # This country level data will be useful later to look at which countries 
 # produce which crops and how much is produced.

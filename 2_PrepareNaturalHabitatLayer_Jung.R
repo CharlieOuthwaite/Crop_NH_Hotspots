@@ -7,6 +7,13 @@
 
 # this version of the script is using the Jung et al 2020 paper
 
+# This script sums NH across dif types from Jung data into a single variable.
+# Then creates a map of NH availability in the area where crops are grown using
+# the binary map created in script 1.
+
+# Two version are created, one that is just forest and grassland, the other includes
+# shrubland and savannah as well. (named 2 and 4 for number of types)
+
 rm(list = ls())
 
 # load libraries
@@ -97,9 +104,8 @@ CropDist <- raster(paste0(dataDir2, "CroplandBinary.tif"))
 
 # when trying to reproject as below, get an error: 
 # Error in if (maxy == miny) { : missing value where TRUE/FALSE needed
-# if you cut the edges this error does not occur
+# if you crop the edges this error does not occur
 # https://gis.stackexchange.com/questions/220589/error-using-projectraster-in-r-error-in-if-maxy-miny-missing-value-whe
-#extent(CropDist) <- c(xmin= -17372530, xmax= 17372470, ymin= 0.99*(-6357770), ymax= 0.99*(7347230))
 
 # try cropping the extent rather than the above
 b <- extent(-17372530, 17372470,  0.99*(-6357770), 0.99*(7347230))
