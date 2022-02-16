@@ -34,7 +34,7 @@ files
 # 12 maps
 hab_maps <- stack(paste0(dataDir, "/lvl1_frac_1km_ver004/lvl1_frac_1km_ver004/", files))
 
-# have a little look
+# have a little look, 9 = wetlands inland
 plot(hab_maps[[9]]) # wetlands includes large bodies of water so probably don't want to include that
 
 

@@ -20,7 +20,6 @@ library(velox)
 library(parallel)
 library(sf)
 library(exactextractr) # exact_extract function from here
-library(parallel)
 
 
 
@@ -89,37 +88,28 @@ wrld_simpl_sf <- wrld_simpl_sf[c(1:144, 146:246), ]
 
 
 #### 1. Mean, Min, Max, Median and SD of natural habitat availability ####
-
-NH_sums <- exact_extract(x = NatHabCrop, y = wrld_simpl_sf, fun = c('mean', 'min', 'max', 'median', 'stdev'))
-
-
-# add into the results table
-results$mean_prop_NH <- NH_sums$mean
-results$min_prop_NH <- NH_sums$min
-results$max_prop_NH <- NH_sums$max
-results$median_prop_NH <- NH_sums$median
-results$sd_prop_NH <- NH_sums$stdev
+ 
 
 
-#### 2. proportion of cropland with 40% or less NH ####
+#### 2. proportion of cropland with 20% or less NH ####
 
 countries <- wrld_simpl$NAME
 
-assess_less40 <- function(i){
+assess_less20 <- function(i){
   
   x <- wrld_simpl[wrld_simpl$NAME == i, ]
   
   all <- extract(x = NatHabCrop, y = x, df = TRUE)
   
-  all <- all[!is.na(all$NH_Cropland_Area_Jung_four),]
+  all <- all[!is.na(all$NH_Cropland_Area_Jung_two),]
   
   
   if(!is.null(nrow(all))){
     
     
-    thres <- 0.4
+    thres <- 0.2
     
-    prop <- length(all$NH_Cropland_Area_Jung_four[all$NH_Cropland_Area_Jung_four <= thres])/ length(all$NH_Cropland_Area_Jung_four)
+    prop <- length(all$NH_Cropland_Area_Jung_two[all$NH_Cropland_Area_Jung_two <= thres])/length(all$NH_Cropland_Area_Jung_two)
     
     result <- c(as.character(x$NAME), prop)
     
@@ -142,42 +132,42 @@ clusterEvalQ(cl, {
 
 start <- Sys.time()
 
-prop_less_40 <- parLapplyLB(cl, countries, assess_less40)
+prop_less_20 <- parLapplyLB(cl, countries, assess_less20)
 
 stopCluster(cl)
 
 end <- Sys.time()
 runtime <- end-start
-runtime # 2.761624 hours for all countries
+runtime # 2.761624 hours for all countries, 1.139936 hours on desktop
 
 # organise the outputs
 
-prop_less_40 <- t(as.data.frame(prop_less_40, row.names = NULL))
+prop_less_20 <- t(as.data.frame(prop_less_20, row.names = NULL))
 
-colnames(prop_less_40) <- c("country", "prop_less_40")
-rownames(prop_less_40) <- NULL
+colnames(prop_less_20) <- c("country", "prop_less_20")
+rownames(prop_less_20) <- NULL
 
-results <- merge(results, prop_less_40, by = "country", all.x = TRUE)
-
-
-
-#### 3. proportion of cells with cropland with 60% or more NH ####
+results <- merge(results, prop_less_20, by = "country", all.x = TRUE)
 
 
-assess_more60 <- function(i){
+
+#### 3. proportion of cells with cropland with 20% or more NH ####
+
+
+assess_more20 <- function(i){
   
   x <- wrld_simpl[wrld_simpl$NAME == i, ]
   
   all <- extract(x = NatHabCrop, y = x, df = TRUE)
   
-  all <- all[!is.na(all$NH_Cropland_Area_Jung_four),]
+  all <- all[!is.na(all$NH_Cropland_Area_Jung_two),]
   
   if(!is.null(nrow(all))){
     
     
-    thres <- 0.6
+    thres <- 0.2
     
-    prop <- length(all$NH_Cropland_Area_Jung_four[all$NH_Cropland_Area_Jung_four >= thres])/ length(all$NH_Cropland_Area_Jung_four)
+    prop <- length(all$NH_Cropland_Area_Jung_two[all$NH_Cropland_Area_Jung_two > thres])/ length(all$NH_Cropland_Area_Jung_two)
     
     result <- c(as.character(x$NAME), prop)
     
@@ -198,7 +188,63 @@ clusterEvalQ(cl, {
 
 start <- Sys.time()
 
-prop_more_60 <- parLapplyLB(cl, countries, assess_more60)
+prop_more_20 <- parLapplyLB(cl, countries, assess_more20)
+
+stopCluster(cl)
+
+end <- Sys.time()
+runtime <- end-start
+runtime # 2.4 hours for all countries, 1.1554 hours on desktop
+
+
+# organise the outputs
+
+prop_more_20 <- t(as.data.frame(prop_more_20, row.names = NULL))
+
+colnames(prop_more_20) <- c("country", "prop_more_20")
+rownames(prop_more_20) <- NULL
+
+results <- merge(results, prop_more_20, by = "country", all.x = TRUE)
+
+
+
+# proportion of cells with more than 40%
+
+assess_more40 <- function(i){
+  
+  x <- wrld_simpl[wrld_simpl$NAME == i, ]
+  
+  all <- extract(x = NatHabCrop, y = x, df = TRUE)
+  
+  all <- all[!is.na(all$NH_Cropland_Area_Jung_two),]
+  
+  if(!is.null(nrow(all))){
+    
+    
+    thres <- 0.4
+    
+    prop <- length(all$NH_Cropland_Area_Jung_two[all$NH_Cropland_Area_Jung_two > thres])/ length(all$NH_Cropland_Area_Jung_two)
+    
+    result <- c(as.character(x$NAME), prop)
+    
+  } else result <- c(as.character(x$NAME), NA)
+  
+  return(result)
+  
+}
+
+# run function across all countries in parallel
+
+cl <- makeCluster(numCores)
+clusterExport(cl, c("wrld_simpl", "NatHabCrop"))
+clusterEvalQ(cl, {
+  library(raster)
+})
+
+
+start <- Sys.time()
+
+prop_more_40 <- parLapplyLB(cl, countries, assess_more40)
 
 stopCluster(cl)
 
@@ -209,24 +255,27 @@ runtime # 2.4 hours for all countries
 
 # organise the outputs
 
-prop_more_60 <- t(as.data.frame(prop_more_60, row.names = NULL))
+prop_more_40 <- t(as.data.frame(prop_more_40, row.names = NULL))
 
-colnames(prop_more_60) <- c("country", "prop_more_60")
-rownames(prop_more_60) <- NULL
+colnames(prop_more_40) <- c("country", "prop_more_40")
+rownames(prop_more_40) <- NULL
 
-results <- merge(results, prop_more_60, by = "country", all.x = TRUE)
+results <- merge(results, prop_more_40, by = "country", all.x = TRUE)
+
+
 
 
 # convert factors
-results$prop_less_40 <- as.numeric(as.character(results$prop_less_40))
-results$prop_more_60 <- as.numeric(as.character(results$prop_more_60))
+results$prop_less_20 <- as.numeric(as.character(results$prop_less_20))
+results$prop_more_20 <- as.numeric(as.character(results$prop_more_20))
+results$prop_more_40 <- as.numeric(as.character(results$prop_more_40))
 
 
 # save the table
 write.csv(results, file = paste0(outdir, "/Country_summaries_Jung2.csv"), row.names = F)
 #write.csv(results, file = paste0(outdir, "/Country_summaries_Jung4.csv"), row.names = F)
 
-# results <- read.csv(file = paste0(outdir, "/Country_summaries_Jung.csv"))
+# results <- read.csv(file = paste0(outdir, "/Country_summaries_Jung2.csv"))
 
 
 
@@ -296,7 +345,7 @@ results[results$country == "The former Yugoslav Republic of Macedonia", "total_a
 
 nrow(results[is.na(results$total_area), ]) # 48
 
-View(results[is.na(results$total_area) & !is.na(results$mean_prop_NH), ]) # 22 countries with values for NH but no production data from FAO
+View(results[is.na(results$total_area) & !is.na(results$mean_prop_NH), ]) # 39 countries with values for NH but no production data from FAO
 
 
 
@@ -350,7 +399,7 @@ nrow(results[is.na(results$total_prod), ]) # 48
 write.csv(results, file = paste0(outdir, "Country_level_summaries_Jung2.csv"), row.names = F)
 #write.csv(results, file = paste0(outdir, "Country_level_summaries_Jung4.csv"), row.names = F)
 
-#results <- read.csv(file = paste0(outdir, "Country_level_summaries_Jung.csv"))
+#results <- read.csv(file = paste0(outdir, "Country_level_summaries_Jung2.csv"))
 
 
 
@@ -378,27 +427,91 @@ results_prod_gd <- results_prod[order(results_prod$median_prop_NH, decreasing = 
 results_prod_bd <- results_prod[order(results_prod$median_prop_NH, decreasing = F),]
 
 # save the ordered tables
-write.csv(results_prod_gd, file = paste0(outdir, "/Top_50_producers_ordered_medianNH_Jung4.csv"), row.names = F)
+write.csv(results_prod_gd, file = paste0(outdir, "/Top_50_producers_ordered_medianNH_Jung2.csv"), row.names = F)
+#write.csv(results_prod_gd, file = paste0(outdir, "/Top_50_producers_ordered_medianNH_Jung4.csv"), row.names = F)
 
 
 
 
 
 
-#### table 2: based on prop GDP from Agriculture
+#### table 2: based on prop GDP from Agriculture - incomplete
 
-gdpdat <- read.csv(paste0(alldata, "/Macro-Statistics_Key_Indicators_E_All_Data_17-05-2021.csv"))
+# gdpdat <- read.csv(paste0(alldata, "/Macro-Statistics_Key_Indicators_E_All_Data_17-05-2021.csv"))
+# 
+# 
+# # NEXT: not all countries have gross output (agriculture) data, calc these and then use something else for others?
+# 
+# 
+# gdpdat_sub <- gdpdat[gdpdat$Item == "Gross Output (Agriculture)" & gdpdat$Element %in% c("Value US$") | gdpdat$Item == "Gross Domestic Product" & gdpdat$Element %in% c("Value US$"), ]
+# 
+# results$
+# 
+# # get country totals
+# prod_ctry <- produc %>%
+#   group_by(Area) %>%
+#   summarize(total_prod = sum(Value, na.rm = TRUE))
 
 
-# NEXT: not all countries have gross output (agriculture) data, calc these and then use something else for others?
 
 
-gdpdat_sub <- gdpdat[gdpdat$Item == "Gross Output (Agriculture)" & gdpdat$Element %in% c("Value US$") | gdpdat$Item == "Gross Domestic Product" & gdpdat$Element %in% c("Value US$"), ]
 
-results$
+##%######################################################%##
+#                                                          #
+####         Maps of countries that are top 50          ####
+####     producers coloured by median NH and SD NH      ####
+#                                                          #
+##%######################################################%##
 
-# get country totals
-prod_ctry <- produc %>%
-  group_by(Area) %>%
-  summarize(total_prod = sum(Value, na.rm = TRUE))
+library(ggplot2)
+library(plyr)
+library(cowplot)
 
+results <- read.csv(file = paste0(outdir, "/Top_50_producers_ordered_medianNH_Jung2.csv"))
+
+# load country polygons
+data(wrld_simpl)
+
+wrld_tab <- wrld_simpl@data
+
+results$country <- factor(results$country, levels = levels(wrld_tab$NAME))
+
+wrld_tab2 <- merge(x = wrld_tab, y = results, by.x = "NAME", by.y = "country", all.x = T)
+
+wrld_simpl@data <- wrld_tab2
+
+wrld_simpl@data$id <- wrld_simpl@data$ISO3
+
+# need to do this to plot wrld_simpl using ggplot
+shape_df <- fortify(wrld_simpl)
+
+shape_df <- join(shape_df,wrld_simpl@data, by="id")                   
+                    
+
+p1 <- ggplot() +
+  geom_polygon(data = shape_df , aes(x = long, y = lat, group = group, fill = median_prop_NH), color = 'lightgrey', size = 0.2) +
+  scale_fill_continuous(low = "red", high = "green", na.value = NA) +
+  theme_bw() +
+  theme(axis.title = element_blank(), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(),
+        axis.ticks = element_blank(), 
+        panel.border = element_rect(size = 0.2)) + 
+  labs(fill="Median")
+
+
+p2 <- ggplot() +
+  geom_polygon(data = shape_df , aes(x = long, y = lat, group = group, fill = sd_prop_NH), color = 'lightgrey', size = 0.2) +
+  scale_fill_continuous(low = "red", high = "green", na.value = NA) +
+  theme_bw() +
+  theme(axis.title = element_blank(), 
+        axis.text = element_blank(), 
+        panel.grid = element_blank(),
+        axis.ticks = element_blank(), 
+        panel.border = element_rect(size = 0.2)) + 
+  labs(fill="Sd")
+
+
+plot_grid(p1, p2, nrow = 2)
+
+ggsave2(file = paste0(outdir, "Figure_2_median_sd_top50.pdf"), height = 6, width = 6)

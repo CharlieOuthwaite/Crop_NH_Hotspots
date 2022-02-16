@@ -8,7 +8,7 @@
 # think Tim sent this script to me) and creates a binary map of cells that contain 
 # cropland  or not. 
 
-# Start with 1km map, aggregae to a 5km map - once using mean, then once using max
+# Start with 1km map, aggregate to a 5km map - once using mean, then once using max
 # create a binary map, threshold of 200 used to set binary values (what is the unit of this dataset?)
 
 
