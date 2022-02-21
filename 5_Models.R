@@ -4,16 +4,8 @@
 #                                                          #
 ##%######################################################%##
 
-#  TO DO:
-
-# finalise this script when decided upon whether to include UI or not. 
-
-
-
-
-# run simple models of biodiversity response to LU, UI and NH
-
-# use the effects from the models to project SR and abundance in space
+# This script runs models looking at land use, use intensity and 
+# NH effects on richness and abundance. 
 
 rm(list = ls())
 
@@ -25,11 +17,12 @@ library(sf)
 library(ggplot2)
 library(cowplot)
 library(car)
+library(optimx)
 
 # directories
 datadir <- "0_data"
 outdir <- "5_Models"
-dir.create(outdir)
+if(!dir.exists(outdir)) dir.create(outdir)
 
 # read in the complete PREDICTS dataset
 pred.data <- readRDS(paste0(datadir, "/database.rds")) # 3250404 rows
@@ -239,11 +232,21 @@ ggsave2(filename = paste0(outdir, "/Jung_data_histograms.pdf"), p3, height = 3, 
 ##%######################################################%##
 
 
+# try rescaling the NH data
+sites.sub$percNH_Jung2_RS <- scale(sites.sub$percNH_Jung2)
+sites.sub$percNH_Jung2_log_RS <- scale(log(sites.sub$percNH_Jung2+1))
+
+sites.sub$percNH_Jung4_RS <- scale(sites.sub$percNH_Jung4)
+sites.sub$percNH_Jung4_log_RS <- scale(log(sites.sub$percNH_Jung4+1))
+
+
+
+
 #### SPECIES RICHNESS MODELS ####
 
 # remove NAs in the specified columns
-model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung2', "Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
-#model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung4', 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+#model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung4','percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
 
 # summaries
 length(unique(model_data$SS)) # 577
@@ -257,130 +260,188 @@ length(unique(model_data$SSBS)) # 13666
 # using Jung2 data, currently untransformed
 # using Jung4 data, currently untransformed
 
-srmod <- GLMERSelect(modelData = model_data, 
+
+# test alternative model structures
+# 1. including all variables and rescaled NH
+mod_struc <- "Predominant_land_use + Use_intensity + Tropical + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity + Tropical:poly(percNH_Jung4_RS,1) + Tropical:Predominant_land_use:poly(percNH_Jung4_RS,1)"
+
+# 2. removing realm and interactions with realm
+mod_struc2 <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+sr1.trop <- GLMER(modelData = model_data,responseVar = "Species_richness",fitFamily = "poisson",
+             fixedStruct = mod_struc,
+             randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+             REML = TRUE, maxIters = 60000
+             #, optimizer = "Nelder_Mead"
+             )
+
+# summary(sr1.trop$model)
+# vif(sr1.trop$model)
+
+# Warning messages: Jung2 data
+#   1: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#   Model failed to converge with max|grad| = 0.00363711 (tol = 0.002, component 1)
+#   2: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#   Model is nearly unidentifiable: large eigenvalue ratio
+#   - Rescale variables?
+
+
+# Warning message: Jung4 data
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model is nearly unidentifiable: large eigenvalue ratio
+#                - Rescale variables?
+                 
+                 
+srmod <- GLMER(modelData = model_data,responseVar = "Species_richness",fitFamily = "poisson",
+                  fixedStruct = mod_struc2,
+                  randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+# Warning message: Jung2 data
+# In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+# Model failed to converge with max|grad| = 0.00216804 (tol = 0.002, component 1)
+
+# Warning message: Jung4 data
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model failed to converge with max|grad| = 0.00276697 (tol = 0.002, component 1)
+
+save(srmod, file = paste0(outdir, "/Richness_Jung4_finalmod.rdata"))
+
+
+#
+table(model_data$Predominant_land_use, model_data$Use_intensity)
+plot(model_data$Predominant_land_use, model_data$percNH_Jung2)
+plot(model_data$Predominant_land_use, model_data$percNH_Jung4)
+
+# rerun model using lme4 so that allFit function can be used to test all optimizer options.
+mod_struc <- Species_richness ~ Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity +(1|SS)+(1|SSB)+(1|SSBS)
+
+sr1 <- glmer(formula = mod_struc, data = model_data, family = poisson)
+
+# Warning message: Jung2 data
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model failed to converge with max|grad| = 0.00216804 (tol = 0.002, component 1)
+
+# Warning message: Jung4 data
+#   In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
+#                  Model failed to converge with max|grad| = 0.00810945 (tol = 0.002, component 1)
+               
+               
+# allFit function runs model will all available optimizers so can see if convergence
+# warning occurs with all, and if the results are broadly similar across models.
+output <- allFit(sr1)
+
+summary(output)
+# Jung2 model failed to converge in 5 out of 7 models
+# However, estimates for fixed effects across each model all very similar
+
+save(output, file = paste0(outdir, "/allFit_output_Richness_Jung4.rdata"))
+
+# use this function to get model stats
+srmod <- GLMERSelect(modelData = model_data,
                      responseVar = "Species_richness",
-                     fitFamily = "poisson", 
-                     fixedFactors = c("Predominant_land_use", "Use_intensity", "Tropical"),
-                     fixedTerms = list(percNH_Jung2 = 1),
-                     randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)", 
-                     fixedInteractions = c("Predominant_land_use:poly(percNH_Jung2,1)",
-                                           "Use_intensity:poly(percNH_Jung2,1)",
-                                           "Predominant_land_use:Use_intensity",
-                                           "Tropical:poly(percNH_Jung2,1)",
-                                           "Tropical:Predominant_land_use:poly(percNH_Jung2,1)"),  verbose = F)
+                     fitFamily = "poisson",
+                     fixedFactors = c("Predominant_land_use", "Use_intensity"),
+                     fixedTerms = list(percNH_Jung4_RS = 1),
+                     randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                     fixedInteractions = c("Predominant_land_use:poly(percNH_Jung4_RS,1)",
+                                           "Use_intensity:poly(percNH_Jung4_RS,1)",
+                                           "Predominant_land_use:Use_intensity"),  verbose = F)
 
 
 
 summary(srmod$model)
-vif(srmod)
-# model selected not inc use intensity:
-# Species_richness ~ Predominant_land_use + poly(percNH_Jung4, 1) + (1 | SS) + (1 | SSB) + (1 | SSBS)
-
-#Warning message:
-#  In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                 Model failed to converge with max|grad| = 0.00109362 (tol = 0.001, component 1)
-
-# model selected inc use intensity:
-# Species_richness ~ Predominant_land_use + Use_intensity + poly(percNH_Jung4, 1) + Predominant_land_use:Use_intensity + Use_intensity:poly(percNH_Jung4, 1) + (1 | SS) + (1 | SSB) + (1 | SSBS)
-
-#7: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-#                  Model failed to converge with max|grad| = 0.00200249 (tol = 0.001, component 1)
-
-mod_struc <- "Predominant_land_use + Use_intensity + Tropical + poly(percNH_Jung2, 1) + Predominant_land_use:poly(percNH_Jung2,1) + Use_intensity:poly(percNH_Jung2,1) + Predominant_land_use:Use_intensity + Tropical:poly(percNH_Jung2,1) + Tropical:Predominant_land_use:poly(percNH_Jung2,1)"
-
-sr1 <- GLMER(modelData = model_data,responseVar = "Species_richness",fitFamily = "poisson",
-             fixedStruct = mod_struc,
-             randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
-             REML = TRUE, maxIters = 20000)
-
-summary(sr1$model)
-
-# Warning messages:
-# 1: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-# Model failed to converge with max|grad| = 0.00321917 (tol = 0.002, component 1)
-# 2: In checkConv(attr(opt, "derivs"), opt$par, ctrl = control$checkConv,  :
-# Model is nearly unidentifiable: large eigenvalue ratio- Rescale variables?
-
-# save model outputs for both models and stats table
-save(srmod, file = paste0(outdir, "/Richness_Jung4_modelselection.rdata"))
-save(sr1, file = paste0(outdir, "/Richness_Jung4_finalmod.rdata"))
-
+vif(srmod$model)
 write.csv(srmod$stats, file = paste0(outdir, "/Richness_Jung4_stats.csv"))
 
+# for jung4, Predominant_land_use:poly(percNH_Jung4_RS,1) not selected
 
 
+##%######################################################%##
+#                                                          #
+####                 ABUNDANCE MODELS                   ####
+#                                                          #
+##%######################################################%##
 
-#load(file = paste0(outdir, "/Richness_Jung4_modelselection_incUI.rdata"))
-#load(file = paste0(outdir, "/Richness_Jung4_finalmod_incUI.rdata"))
-#load(file = paste0(outdir, "/Richness_Jung4_modelselection.rdata"))
-#load(file = paste0(outdir, "/Richness_Jung4_finalmod.rdata"))
-
-#### ABUNDANCE MODELS ####
-
-model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use','percNH_Jung2', "Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+# remove NAs in the specified columns
+#model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung2','percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB', 'SSBS')])
 
 # summaries
 length(unique(model_data$SS)) # 510
 length(unique(model_data$SSBS)) # 11396
 
 
+# test alternative model structures
+# 1. including all variables and rescaled NH
+mod_struc <- "Predominant_land_use + Use_intensity + Tropical + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity + Tropical:poly(percNH_Jung2_RS,1) + Tropical:Predominant_land_use:poly(percNH_Jung2_RS,1)"
+
+# 2. removing realm and interactions with realm
+mod_struc2 <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+
+ab1.trop <- GLMER(modelData = model_data,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+
+summary(ab1.trop$model)
+vif(ab1.trop$model)
+save(ab1.trop, file = paste0(outdir, "/Abundance_model_Jung2_incRealm.rdata"))
+
+# no warnings
+
+ab1 <- GLMER(modelData = model_data,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc2,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+
+summary(ab1$model)
+vif(ab1$model)
+save(ab1, file = paste0(outdir, "/Abundance_model_Jung2.rdata"))
+
+# no warnings
+
+
 abmod <- GLMERSelect(modelData = model_data, 
                      responseVar = "LogAbun",
                      fitFamily = "gaussian", 
                      fixedFactors = c("Predominant_land_use", "Use_intensity", "Tropical"),
-                     fixedTerms = list(percNH_Jung2 = 1),
+                     fixedTerms = list(percNH_Jung2_RS = 1),
                      randomStruct = "(1|SS)+(1|SSB)", 
-                     fixedInteractions = c("Predominant_land_use:poly(percNH_Jung2,1)",
-                                           "Use_intensity:poly(percNH_Jung2,1)",
+                     fixedInteractions = c("Predominant_land_use:poly(percNH_Jung2_RS,1)",
+                                           "Use_intensity:poly(percNH_Jung2_RS,1)",
                                            "Predominant_land_use:Use_intensity",
-                                           "Tropical:poly(percNH_Jung2,1)",
-                                           "Tropical:Predominant_land_use:poly(percNH_Jung2,1)"), verbose = F)
+                                           "Tropical:poly(percNH_Jung2_RS,1)",
+                                           "Tropical:Predominant_land_use:poly(percNH_Jung2_RS,1)"), verbose = F)
 
 
 summary(abmod$model)
 vif(abmod$model)
 # model selected:
-# LogAbun ~ Predominant_land_use + Predominant_land_use:poly(percNH_Jung4, 1) + poly(percNH_Jung4, 1) + (1 | SS) + (1 | SSB)
-
-# model selected inc use intensity
-# LogAbun ~ Predominant_land_use + Use_intensity + Predominant_land_use:poly(percNH_Jung4, 1) + Predominant_land_use:Use_intensity + Use_intensity:poly(percNH_Jung4,1) + poly(percNH_Jung4, 1) + (1 | SS) + (1 | SSB)
-
-# more complicated model
-# LogAbun ~ Predominant_land_use + Use_intensity + poly(percNH_Jung2, 1) + 
-# Predominant_land_use:poly(percNH_Jung2, 1) + Use_intensity:poly(percNH_Jung2, 1) +
-# Predominant_land_use:Use_intensity + Tropical:poly(percNH_Jung2, 1) + 
-# Tropical:Predominant_land_use:poly(percNH_Jung2, 1) +  Tropical + (1 | SS) + (1 | SSB)
-
-# GVIF Df GVIF^(1/(2*Df))
-# Predominant_land_use                                 4.627042  2        1.466648
-# Use_intensity                                        5.384701  2        1.523317
-# poly(percNH_Jung2, 1)                                3.102611  1        1.761423
-# Tropical                                             1.007021  1        1.003504
-# Predominant_land_use:poly(percNH_Jung2, 1)           9.794847  2        1.769088
-# Use_intensity:poly(percNH_Jung2, 1)                  2.532461  2        1.261495
-# Predominant_land_use:Use_intensity                  20.596088  4        1.459564
-# poly(percNH_Jung2, 1):Tropical                       2.634295  1        1.623051
-# Predominant_land_use:poly(percNH_Jung2, 1):Tropical  8.939302  2        1.729123
-
-ab1 <- GLMER(modelData = model_data,responseVar = "LogAbun",fitFamily = "gaussian",
-             fixedStruct = "Predominant_land_use + poly(percNH_Jung4, 1) + Predominant_land_use:poly(percNH_Jung4, 1)",
-             randomStruct = "(1|SS)+(1|SSB)",
-             REML = TRUE, 
-             saveVars = "SSBS")
-
-summary(ab1$model)
+# LogAbun ~ Predominant_land_use + Use_intensity + Tropical + poly(percNH_Jung2_RS,1) +
+# Predominant_land_use:poly(percNH_Jung2_RS, 1) + Use_intensity:poly(percNH_Jung2_RS, 1) +
+# Predominant_land_use:Use_intensity + Tropical:poly(percNH_Jung2_RS, 1) + 
+# Tropical:Predominant_land_use:poly(percNH_Jung2_RS,1) + (1 | SS) + (1 | SSB)
 
 
-# save model outputs for both models and stats table
+write.csv(abmod$stats, file = paste0(outdir, "/Abundance_Jung4_stats_incRealm.csv"))
 
-save(abmod, file = paste0(outdir, "/Abundance_Jung4_modelselection.rdata"))
-save(ab1, file = paste0(outdir, "/Abundance_Jung4_finalmod.rdata"))
 
-write.csv(abmod$stats, file = paste0(outdir, "/Abundance_Jung4_stats.csv"))
+##%######################################################%##
+#                                                          #
+####           Separate models for each realm           ####
+#                                                          #
+##%######################################################%##
 
-# load(file = paste0(outdir, "/Abundance_Jung4_modelselection_incUI.rdata"))
-# load(file = paste0(outdir, "/Abundance_Jung4_finalmod_incUI.rdata"))
-# load(file = paste0(outdir, "/Abundance_Jung4_modelselection.rdata"))
-# load(file = paste0(outdir, "/Abundance_Jung4_finalmod.rdata"))
+
+
 
 
