@@ -442,6 +442,362 @@ write.csv(abmod$stats, file = paste0(outdir, "/Abundance_Jung4_stats_incRealm.cs
 ##%######################################################%##
 
 
+#### Richness Realm ####
+
+#model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub[,c('Species_richness','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+
+model_data_trop <- model_data[model_data$Tropical == "Tropical", ] # 5519 rows
+model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 8147 rows
+
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+sr1.trop <- GLMER(modelData = model_data_trop,responseVar = "Species_richness",fitFamily = "poisson",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(sr1.trop$model)
+
+# no warnings
+
+sr1.temp <- GLMER(modelData = model_data_temp,responseVar = "Species_richness",fitFamily = "poisson",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(sr1.temp$model)
+
+# no warnings
+
+#save(sr1.trop, file = paste0(outdir, "/Richness_Jung2_Tropical.rdata"))
+#save(sr1.temp, file = paste0(outdir, "/Richness_Jung2_Temperate.rdata"))
+save(sr1.trop, file = paste0(outdir, "/Richness_Jung4_Tropical.rdata"))
+save(sr1.temp, file = paste0(outdir, "/Richness_Jung4_Temperate.rdata"))
+
+
+#### Abundance Realm ####
+
+#model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+
+model_data_trop <- model_data[model_data$Tropical == "Tropical", ] # 4708 rows
+model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 6688 rows
+
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+ab1.trop <- GLMER(modelData = model_data_trop,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(ab1.trop$model)
+
+# no warnings
+
+ab1.temp <- GLMER(modelData = model_data_temp,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(ab1.temp$model)
+
+# no warnings
+
+#save(ab1.trop, file = paste0(outdir, "/Abundance_Jung2_Tropical.rdata"))
+#save(ab1.temp, file = paste0(outdir, "/Abundance_Jung2_Temperate.rdata"))
+save(ab1.trop, file = paste0(outdir, "/Abundance_Jung4_Tropical.rdata"))
+save(ab1.temp, file = paste0(outdir, "/Abundance_Jung4_Temperate.rdata"))
+
+
+
+##%######################################################%##
+#                                                          #
+####                  Pollinator Data                   ####
+#                                                          #
+##%######################################################%##
+
+# read in pollinator dataset
+pols.data <- readRDS(paste0(datadir, "/PREDICTS_pollinators_8_exp.rds"))
+
+# correct sampling effort 
+pols.data <- CorrectSamplingEffort(pols.data)
+
+# merge sites: this combines potential subsamples within one site
+pols.data <- MergeSites(pols.data[, 1:67]) # 344555 rows
+
+# Calculate site level metrics
+pols.data.sites.metrics <- SiteMetrics(pols.data, extra.cols = c("Predominant_land_use", "SSB", "SSBS", "Biome"), 
+                                  srEstimators = NULL) # 11352 rows
+
+
+### only interested in natural habitats plus cropland, drop other land uses ###
+
+# site level data primary, secondary and cropland only
+sites.sub.pols <- pols.data.sites.metrics[!pols.data.sites.metrics$Predominant_land_use %in% c("Urban", "Pasture", "Cannot decide", "Plantation forest"), ]
+# 7845 rows
+
+# remove sites with NA in lat/long columns
+sites.sub.pols <- sites.sub.pols[!is.na(sites.sub.pols$Longitude),  ] # 7839 rows
+
+# get the tropical values
+sites.sub.pols$Tropical <- NA
+
+sites.sub.pols[sites.sub.pols$Latitude > -23.44 & sites.sub.pols$Latitude < 23.44, 'Tropical'] <- "Tropical"
+
+# label the remaining as temperate
+sites.sub.pols[is.na(sites.sub.pols$Tropical), 'Tropical'] <- "Temperate"
+
+# set as a factor
+sites.sub.pols$Tropical <- as.factor(sites.sub.pols$Tropical)
+
+table(sites.sub.pols$Tropical)
+# Temperate  Tropical 
+# 4396       3443 
+
+# convert the PREDICTS lat/longs into spatial points
+sites.sub_xy.pol <- sites.sub.pols[, c("Longitude", "Latitude")]
+sites.sub_xy.pol <- SpatialPoints(sites.sub_xy.pol, proj4string = CRS("+init=epsg:4326 +proj=longlat +ellps=WGS84"))
+
+
+# extract the dataset info for the PREDICTS sites
+sites.sub.pols$percNH_Jung4 <- extract(NatHabCrop4, sites.sub_xy.pol, na.rm = FALSE)
+sites.sub.pols$percNH_Jung2 <- extract(NatHabCrop2, sites.sub_xy.pol, na.rm = FALSE)
+
+
+# nrows of dataset
+nrow(sites.sub.pols) # 7839
+
+# remove those sites that have "Cannot decide" as a use intensity
+nrow(sites.sub.pols[sites.sub.pols$Use_intensity == "Cannot decide", ]) # 1266
+sites.sub.pols <- sites.sub.pols[!sites.sub.pols$Use_intensity == "Cannot decide", ] 
+
+nrow(sites.sub.pols) # 6573
+
+# remove any rows that have NA in the variable columns
+summary(is.na(sites.sub.pols))
+#sites.sub <- sites.sub[!is.na(sites.sub$percNH_hosk), ]
+
+# drop unused levels of factors
+sites.sub.pols <- droplevels(sites.sub.pols)
+
+# nsites per use intensity
+table(sites.sub.pols$Use_intensity)
+table(sites.sub.pols$Predominant_land_use)
+
+# Minimal use   Light use Intense use 
+# 3076        2124        1373
+
+# set land use as character variable
+sites.sub.pols$Predominant_land_use <- as.character(sites.sub.pols$Predominant_land_use)
+
+
+# combine secondary land uses
+sites.sub.pols$Predominant_land_use <- sub("Mature secondary vegetation", "Secondary vegetation", sites.sub.pols$Predominant_land_use)
+sites.sub.pols$Predominant_land_use <- sub("Intermediate secondary vegetation", "Secondary vegetation", sites.sub.pols$Predominant_land_use)
+sites.sub.pols$Predominant_land_use <- sub("Young secondary vegetation", "Secondary vegetation", sites.sub.pols$Predominant_land_use)
+sites.sub.pols[sites.sub.pols$Predominant_land_use == "Secondary vegetation (indeterminate age)", 'Predominant_land_use'] <- "Secondary vegetation"
+
+table(sites.sub.pols$Predominant_land_use)
+
+# Cropland   Primary vegetation Secondary vegetation 
+# 1680                 2813                 2080 
+
+# set factor levels of predominant land use
+sites.sub.pols$Predominant_land_use <- factor(sites.sub.pols$Predominant_land_use,
+                                         levels=c("Primary vegetation","Secondary vegetation", "Cropland"))
+
+
+# nsites per land use
+table(sites.sub.pols$Predominant_land_use)
+
+# transform abundance
+sites.sub.pols$LogAbun <- log(sites.sub.pols$Total_abundance + 1)
+
+
+
+# try rescaling the NH data
+sites.sub.pols$percNH_Jung2_RS <- scale(sites.sub.pols$percNH_Jung2)
+sites.sub.pols$percNH_Jung2_log_RS <- scale(log(sites.sub.pols$percNH_Jung2+1))
+
+sites.sub.pols$percNH_Jung4_RS <- scale(sites.sub.pols$percNH_Jung4)
+sites.sub.pols$percNH_Jung4_log_RS <- scale(log(sites.sub.pols$percNH_Jung4+1))
+
+
+
+
+# save transformed dataset
+save(sites.sub.pols, file = paste0(outdir, "/PREDICTS_dataset_incNH_POLLINATORS.rdata"))
+
+# load(file = paste0(outdir, "/PREDICTS_dataset_incNH_POLLINATORS.rdata"))
+
+
+
+##%######################################################%##
+#                                                          #
+####                 Pollinator models                  ####
+#                                                          #
+##%######################################################%##
+
+# Run the above models on the pollinator subset of PREDICTS
+
+#### all pollinators richness ####
+
+#model_data <- na.omit(sites.sub.pols[,c('Species_richness','Predominant_land_use', 'percNH_Jung2','percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub.pols[,c('Species_richness','Predominant_land_use', 'percNH_Jung4','percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+
+# 6573 rows
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+
+srmod_pols <- GLMER(modelData = model_data,responseVar = "Species_richness",fitFamily = "poisson",
+               fixedStruct = mod_struc,
+               randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+               REML = TRUE, maxIters = 60000
+               #, optimizer = "Nelder_Mead"
+)
+
+summary(srmod_pols$model)
+#save(srmod_pols, file = paste0(outdir, "/Richness_Jung2_pollinators.rdata"))
+save(srmod_pols, file = paste0(outdir, "/Richness_Jung4_pollinators.rdata"))
+
+# no warnings
+
+
+#### all pollinators abundance ####
+
+
+# remove NAs in the specified columns
+#model_data <- na.omit(sites.sub.pols[,c('LogAbun','Predominant_land_use', 'percNH_Jung2','percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB', 'SSBS')])
+model_data <- na.omit(sites.sub.pols[,c('LogAbun','Predominant_land_use', 'percNH_Jung4','percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB', 'SSBS')])
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+abmod_pols <- GLMER(modelData = model_data,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+
+summary(abmod_pols$model)
+
+#save(abmod_pols, file = paste0(outdir, "/Abundance_Jung2_pollinators.rdata"))
+save(abmod_pols, file = paste0(outdir, "/Abundance_Jung4_pollinators.rdata"))
+
+
+
+
+##%######################################################%##
+#                                                          #
+####                Pollinators by realm                ####
+#                                                          #
+##%######################################################%##
+
+# run a separate model for each realm for the pollinators 
+
+
+#### Richness Realm ####
+
+#model_data <- na.omit(sites.sub.pols[,c('Species_richness','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub.pols[,c('Species_richness','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+
+model_data_trop <- model_data[model_data$Tropical == "Tropical", ] # 2524 rows
+model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 4049 rows
+
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+sr1.trop <- GLMER(modelData = model_data_trop,responseVar = "Species_richness",fitFamily = "poisson",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(sr1.trop$model)
+
+# no warnings
+
+sr1.temp <- GLMER(modelData = model_data_temp,responseVar = "Species_richness",fitFamily = "poisson",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)+(1|SSBS)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(sr1.temp$model)
+
+# no warnings
+
+#save(sr1.trop, file = paste0(outdir, "/Richness_Jung2_Tropical_POLLINATORS.rdata"))
+#save(sr1.temp, file = paste0(outdir, "/Richness_Jung2_Temperate_POLLINATORS.rdata"))
+save(sr1.trop, file = paste0(outdir, "/Richness_Jung4_Tropical_POLLINATORS.rdata"))
+save(sr1.temp, file = paste0(outdir, "/Richness_Jung4_Temperate_POLLINATORS.rdata"))
+
+
+#### Abundance Realm ####
+
+#model_data <- na.omit(sites.sub.pols[,c('LogAbun','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub.pols[,c('LogAbun','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+
+model_data_trop <- model_data[model_data$Tropical == "Tropical", ] # 4708 rows
+model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 6688 rows
+
+
+# 2. removing realm and interactions with realm
+#mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
+
+ab1.trop <- GLMER(modelData = model_data_trop,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(ab1.trop$model)
+
+# no warnings
+
+ab1.temp <- GLMER(modelData = model_data_temp,responseVar = "LogAbun",fitFamily = "gaussian",
+                  fixedStruct = mod_struc,
+                  randomStruct = "(1|SS)+(1|SSB)",
+                  REML = TRUE, maxIters = 60000
+                  #, optimizer = "Nelder_Mead"
+)
+
+summary(ab1.temp$model)
+
+# no warnings
+
+#save(ab1.trop, file = paste0(outdir, "/Abundance_Jung2_Tropical_POLLINATORS.rdata"))
+#save(ab1.temp, file = paste0(outdir, "/Abundance_Jung2_Temperate_POLLINATORS.rdata"))
+save(ab1.trop, file = paste0(outdir, "/Abundance_Jung4_Tropical_POLLINATORS.rdata"))
+save(ab1.temp, file = paste0(outdir, "/Abundance_Jung4_Temperate_POLLINATORS.rdata"))
+
 
 
 
