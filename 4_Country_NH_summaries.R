@@ -89,7 +89,15 @@ wrld_simpl_sf <- wrld_simpl_sf[c(1:144, 146:246), ]
 
 #### 1. Mean, Min, Max, Median and SD of natural habitat availability ####
  
+NH_sums <- exact_extract(x = NatHabCrop, y = wrld_simpl_sf, fun = c('mean', 'min', 'max', 'median', 'stdev'))
 
+
+# add into the results table
+results$mean_prop_NH <- NH_sums$mean
+results$min_prop_NH <- NH_sums$min
+results$max_prop_NH <- NH_sums$max
+results$median_prop_NH <- NH_sums$median
+results$sd_prop_NH <- NH_sums$stdev
 
 #### 2. proportion of cropland with 20% or less NH ####
 

@@ -5,7 +5,8 @@
 ##%######################################################%##
 
 # here, create a projection matrix covering global cropland area
-# include Land use and Jung4 percNH
+# include Land use and use intensity and natural habitat availability.
+# test using Jung2 and Jung4 versions. 
 
 
 rm(list = ls())
@@ -21,49 +22,131 @@ library(cowplot)
 # directories
 datadir <- "2_PrepareNaturalHabitatLayer/"
 outdir <- "6_Projections/"
-dir.create(outdir)
+if(!dir.exists(outdir)) dir.create(outdir)
 
-# # files from Tim for land use use intensity combo in here
-# proj_data <- "Z:/Datasets/LandUseIntensity_globalmap_fromTim/02Projections_02ProjectLUIntensity"
+# files from Tim for land use use intensity combo in here
+proj_data <- "Z:/Datasets/LandUseIntensity_globalmap_fromTim/02Projections_02ProjectLUIntensity"
+
+# first 3 files are cropland Int Lt Min, are these proportions of area?
+NH_projs <- list.files(proj_data, pattern = "raster.tif$")
+
+
+# read in the rasters
+cr_int <- raster(paste0(proj_data, "/", NH_projs[1]))
+cr_lt <- raster(paste0(proj_data, "/", NH_projs[2]))
+cr_min <- raster(paste0(proj_data, "/", NH_projs[3]))
+
+# take a look
+# plot(cr_int)
+# plot(cr__lt)
+# plot(cr_min)
+
+
+# read in the fractional natural habitat data
+Jung4 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
+Jung2 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_two.tif"))
+
+# use the cropland area mask as the base
+crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
+# crop map is at a 5x5km grid
+
+
+# I'm not sure what the best approach is for projecting this. Use the binary map for cropland
+# area and then aggregate the Jung data up to that resolution, or use Tim's cropland maps and
+# try to match the resolutions (they are slightly off)
+
+# try to use the finer resolution maps (Tim's cropland and Jung) first.
+
+# only need presence of cropland, so try to make the crp map the same res as the Jung data
+
+# resample to get them in the same resolution and extent
+cr_int_resamp <- projectRaster(cr_int, Jung4, method = 'bilinear')
+cr_lt_resamp <- projectRaster(cr_lt, Jung4, method = 'bilinear')
+cr_min_resamp <- projectRaster(cr_min, Jung4, method = 'bilinear')
+
+
+# save the resampled versions
+writeRaster(cr_int_resamp, filename = paste0(outdir, "/resampled_crp_int_layer.tif"), format = "GTiff")
+writeRaster(cr_lt_resamp, filename = paste0(outdir, "/resampled_crp_lt_layer.tif"), format = "GTiff")
+writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.tif"), format = "GTiff")
+
+# load in if not already
+# cr_int_resamp <- raster(paste0(outdir, "/resampled_crp_int_layer.tif"))
+# cr_lt_resamp <- raster(paste0(outdir, "/resampled_crp_lt_layer.tif"))
+# cr_min_resamp <- raster(paste0(outdir, "/resampled_crp_min_layer.tif"))
 # 
-# NH_projs <- list.files(proj_data, pattern = "raster.tif$")
-# 
-# 
-# # just interested in the cropland area so just need to combine the cropland maps
-# cr1 <- raster(paste0(proj_data, "/", NH_projs[1]))
-# cr2 <- raster(paste0(proj_data, "/", NH_projs[2]))
-# cr3 <- raster(paste0(proj_data, "/", NH_projs[3]))
-# 
-# # combine the cropland rasters
-# crp <- stack(cr1, cr2, cr3)
-# crp <- sum(crp)
-# 
-# 
-# # read in the fractional natural habitat data
-# Jung4 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
-# 
-# # use the cropland area mask as the base
-# crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
-# # crop map is at a 5x5km grid
-# 
-# 
-# # I'm not sure what the best approach is for projecting this. Use the binary map for cropland
-# # area and then aggregate the Jung data up to that resolution, or use Tim's cropland maps and
-# # try to match the resolutions (they are slightly off)
-# 
-# # try to use the finer resolution maps (Tim's cropland and Jung) first.
-# 
-# # only need presence of cropland, so try to make the crp map the same res as the Jung data
-# 
-# # resample to get them in the same resolution and extent
-# crp_resamp <- projectRaster(crp, Jung4, method = 'ngb', alignOnly = TRUE)
-# 
-# writeRaster(crp_resamp, filename = paste0(outdir, "/resampled_crp_layer.tif"), format = "GTiff")
-# 
-# 
-# comb_stack <- stack(crp_resamp, Jung4)
-# 
-# #crp_resamp <- raster(paste0(outdir, "/resampled_crp_layer.tif"))
+
+
+
+
+
+# projections:
+
+# read in models
+# load("5_Models/Richness_Jung4_finalmod.rdata")
+# load("5_Models/Abundance_Jung4_finalmod.rdata")
+# load("5_Models/Richness_Jung2_finalmod.rdata")
+# load("5_Models/Abundance_Jung2_finalmod.rdata")
+
+
+
+# result <- intercept + 
+#   cropland_min * coeef LU:UI cropmin +
+#   cropland_lt * coeff LU:UI croplt +
+#   cropland_int * coeff LU:UI cropIn +
+#   NH * coeff NH +
+#   coeff LU:NH *  cropland (binary map?) * NH + 
+#   UI interaction with NH?
+
+# also realm?
+  
+#### Rescale the NH data ####
+
+#### Projections 1: Abundance, Jung4 ####
+
+## tropical model
+load("5_Models/Abundance_Jung4_Tropical.rdata") # ab1.trop
+summary(ab1.trop$model)
+#LogAbun ~ Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) +
+# Predominant_land_use:poly(percNH_Jung4_RS, 1) + Use_intensity:poly(percNH_Jung4_RS, 1) + Predominant_land_use:Use_intensity + 
+# (1 | SS) + (1 | SSB)
+
+ab1.trop_coefs <- fixef(ab1.trop$model)
+
+
+proj_ab_trop <- ab1.trop_coefs['(Intercept)'] + 
+
+
+
+
+## temperate model
+
+
+
+
+
+
+
+# remove wrong realm results
+
+# combine with other realm
+
+
+
+# crop to harvest area using the binary map?
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #### create a projection matrix ####
 
@@ -229,4 +312,18 @@ p3 <- plot_grid(p1, p2, nrow = 2)
 # save plot (A5 size)
 ggsave2(p3, filename = paste0(outdir, "All_biodiv_ab_sr_maps.pdf"), height = 8.27, width = 5.83, units = "in")
 
+
+
+
+##%######################################################%##
+#                                                          #
+####              Including use intensity               ####
+#                                                          #
+##%######################################################%##
+
+# Here projections are done a little differentlys o that use intesity can be used. 
+
+# following example code for Arc/python analyses used aaages ago. 
+
+ref_value <- 
 

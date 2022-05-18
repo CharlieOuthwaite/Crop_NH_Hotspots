@@ -219,11 +219,6 @@ p3 <- plot_grid(p1, p2)
 ggsave2(filename = paste0(outdir, "/Jung_data_histograms.pdf"), p3, height = 3, width = 6)
 
 
-# should these be transformed for analysis? Not sure there is a transformation to 
-# suit these u-shaped distributions. 
-
-# They don't need to be rescaled as they are the only continuous variable
-
 
 ##%######################################################%##
 #                                                          #
@@ -239,6 +234,7 @@ sites.sub$percNH_Jung2_log_RS <- scale(log(sites.sub$percNH_Jung2+1))
 sites.sub$percNH_Jung4_RS <- scale(sites.sub$percNH_Jung4)
 sites.sub$percNH_Jung4_log_RS <- scale(log(sites.sub$percNH_Jung4+1))
 
+save(sites.sub, file = paste0(outdir, "/PREDICTS_dataset_incNH.rdata"))
 
 
 
@@ -257,8 +253,8 @@ length(unique(model_data$SSBS)) # 13666
 # see comparison markdown/PDF
 # adding in use intensity here
 
-# using Jung2 data, currently untransformed
-# using Jung4 data, currently untransformed
+# using Jung2 data, currently untransformed, but rescaled
+# using Jung4 data, currently untransformed, but rescaled
 
 
 # test alternative model structures
