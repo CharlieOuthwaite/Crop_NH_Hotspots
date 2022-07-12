@@ -80,14 +80,22 @@ writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.t
 
 
 
-# projections:
+##%######################################################%##
+#                                                          #
+####                     ALL MODELS                     ####
+#                                                          #
+##%######################################################%##
+
 
 # read in models
-# load("5_Models/Richness_Jung4_finalmod.rdata")
-# load("5_Models/Abundance_Jung4_finalmod.rdata")
-# load("5_Models/Richness_Jung2_finalmod.rdata")
-# load("5_Models/Abundance_Jung2_finalmod.rdata")
-
+# load("5_Models/Richness_Jung2_Tropical.rdata")
+# load("5_Models/Richness_Jung4_Tropical.rdata")
+# load("5_Models/Richness_Jung2_Temperate.rdata")
+# load("5_Models/Richness_Jung4_Temperate.rdata")
+# load("5_Models/Abundance_Jung2_Tropical.rdata")
+# load("5_Models/Abundance_Jung4_Tropical.rdata")
+# load("5_Models/Abundance_Jung2_Temperate.rdata")
+# load("5_Models/Abundance_Jung4_Temperate.rdata")
 
 
 # result <- intercept + 
