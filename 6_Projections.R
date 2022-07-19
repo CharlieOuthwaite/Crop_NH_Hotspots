@@ -46,18 +46,6 @@ cr_min <- raster(paste0(proj_data, "/", NH_projs[3]))
 Jung4 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
 Jung2 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_two.tif"))
 
-# use the cropland area mask as the base
-crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
-# crop map is at a 5x5km grid
-
-
-# I'm not sure what the best approach is for projecting this. Use the binary map for cropland
-# area and then aggregate the Jung data up to that resolution, or use Tim's cropland maps and
-# try to match the resolutions (they are slightly off)
-
-# try to use the finer resolution maps (Tim's cropland and Jung) first.
-
-# only need presence of cropland, so try to make the crp map the same res as the Jung data
 
 # resample to get them in the same resolution and extent
 cr_int_resamp <- projectRaster(cr_int, Jung4, method = 'bilinear')
@@ -105,7 +93,7 @@ writeRaster(total_crp, filename = paste0(outdir, "/resampled_total_cropland_laye
 
 Jung2_RS <- scale(Jung2) # actually, do I need to scale using values used in predicts dataset? 
 #But all proportions so max/min values should be similar. 
-
+rm(Jung2)
 
 #### Projections 1: Abundance, Jung2 ####
 
@@ -120,12 +108,14 @@ summary(ab1.trop$model)
 
 # get the model coefficients
 ab1.trop_coefs <- fixef(ab1.trop$model)
+rm(ab1.trop)
 
 # set the reference values
 load(file ="5_MOdels/PREDICTS_dataset_incNH.rdata") # sites.sub
 
 scalers <- c(attr(sites.sub$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub$percNH_Jung2_RS, "scaled:center"))
 
+rm(sites.sub)
 
 # the reference value of cropland
 NH_ref <- (0.4 - scalers[2])/scalers[1]
@@ -185,14 +175,27 @@ pred_trop <- exp(
   
 )/(exp(refval_trop))
 
+writeRaster(pred_trop, filename = paste0(outdir, "projection_raster_all_Jung2_abundance.tif"), format = "GTiff")
+pred_trop <- raster(paste0(outdir, "projection_raster_all_Jung2_abundance.tif"))
 
-plot(pred_trop)
+
+#plot(pred_trop)
 summary(pred_trop)
 quantile(pred_trop, 0.90)
 
+# set extents that need to be converted to NA as outside tropical region
+extent_NA_trop1 <- extent(matrix(c(-180,  23.44, 180, 90), nrow=2))
+extent_NA_trop2 <- extent(matrix(c(-180, -90, 180, -23.44), nrow=2))
 
+# set values out side of the trop/temp extent to NA
 
+# assess number of NAs to check if NA assignment is being completed
+summary(pred_trop) #NA's    6.121259e+08
 
+pred_trop[extent_NA_trop1] <- NA
+pred_trop[extent_NA_trop2] <- NA
+
+plot(pred_trop)
 
 #### temperate model ####
 
@@ -288,6 +291,9 @@ final_abun_Jung2 <- sum(pred_temp, pred_trop
 
 # crop to harvested area using the binary map?
 
+# use the cropland area mask as the base
+crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
+# crop map is at a 5x5km grid
 
 
 
