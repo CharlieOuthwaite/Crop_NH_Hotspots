@@ -77,8 +77,11 @@ writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.t
 # 
 
 
+# determine total area of cropland in a cell
+total_crp <- sum(cr_min_resamp, cr_lt_resamp, cr_int_resamp)
 
-
+writeRaster(total_crp, filename = paste0(outdir, "/resampled_total_cropland_layer.tif"), format = "GTiff")
+# total_crp <- raster(paste0(outdir, "/resampled_total_cropland_layer.tif"))
 
 ##%######################################################%##
 #                                                          #
@@ -98,240 +101,206 @@ writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.t
 # load("5_Models/Abundance_Jung4_Temperate.rdata")
 
 
-# result <- intercept + 
-#   cropland_min * coeef LU:UI cropmin +
-#   cropland_lt * coeff LU:UI croplt +
-#   cropland_int * coeff LU:UI cropIn +
-#   NH * coeff NH +
-#   coeff LU:NH *  cropland (binary map?) * NH + 
-#   UI interaction with NH?
-
-# also realm?
-  
 #### Rescale the NH data ####
 
-#### Projections 1: Abundance, Jung4 ####
+Jung2_RS <- scale(Jung2) # actually, do I need to scale using values used in predicts dataset? 
+#But all proportions so max/min values should be similar. 
 
-## tropical model
-load("5_Models/Abundance_Jung4_Tropical.rdata") # ab1.trop
+
+#### Projections 1: Abundance, Jung2 ####
+
+#### tropical model####
+
+
+load("5_Models/Abundance_Jung2_Tropical.rdata") # ab1.trop
 summary(ab1.trop$model)
-#LogAbun ~ Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) +
-# Predominant_land_use:poly(percNH_Jung4_RS, 1) + Use_intensity:poly(percNH_Jung4_RS, 1) + Predominant_land_use:Use_intensity + 
+#LogAbun ~ Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) +
+# Predominant_land_use:poly(percNH_Jung2_RS, 1) + Use_intensity:poly(percNH_Jung2_RS, 1) + Predominant_land_use:Use_intensity + 
 # (1 | SS) + (1 | SSB)
 
+# get the model coefficients
 ab1.trop_coefs <- fixef(ab1.trop$model)
 
+# set the reference values
+load(file ="5_MOdels/PREDICTS_dataset_incNH.rdata") # sites.sub
 
-proj_ab_trop <- ab1.trop_coefs['(Intercept)'] + 
+scalers <- c(attr(sites.sub$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub$percNH_Jung2_RS, "scaled:center"))
 
 
+# the reference value of cropland
+NH_ref <- (0.4 - scalers[2])/scalers[1]
+# what is a useful baseline? try various? 40?
+# reference: all cropland is minimal with X% natural habitat surrounding it. 
+# need to determine an appropriate and feasible amount of NH. 40%?
 
 
-## temperate model
+# reference: cropland, minimal, NH = X
+refval_trop <- (ab1.trop_coefs["(Intercept)"] + 
+                  (ab1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
+                  (ab1.trop_coefs["poly(percNH_Jung2_RS, 1)"] * NH_ref) + 
+                  (ab1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * NH_ref))
+summary(refval_trop)
+
+# possibly need another * total_crp in the final line?
+
+#notes from meeting with Tim, see also photo of whiteboard
+# intercept + 
+# Coef(crop) (* total cropland) + # areas cancel out
+# NHref (0.4) * NH coef
+# + coefLUCrop:NH x 0.4
+
+
+# test with and without total area of cropland in the ref and predictions, to see if they cancel out
+
+
+pred_trop <- exp(
+  
+  # intercept +
+  # coef cropland + (assuming not needing * total crop area map)
+  # Nh map * NHCoef +
+  # coef UIlight * fracUIlight +
+  # coef UIint * fract UI int +
+  # NHmap * coef NH:LUcrop +
+  # NHmap * coef NH:uilight * fract lgiht
+  # NHmap * coef NH:int * frac int
+  
+  (ab1.trop_coefs["(Intercept)"]) + 
+    
+    # cropland area  
+    (ab1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
+    
+    # amount of NH    
+    (ab1.trop_coefs["poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+    
+    # use intensity  
+    (ab1.trop_coefs["Use_intensityLight use"] * cr_lt_resamp) +
+    (ab1.trop_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
+    
+    # use intensity natural habitat interactions  
+    (Jung2_RS * ab1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * total_crp) + 
+    (Jung2_RS * ab1.trop_coefs["Use_intensityLight use:poly(percNH_Jung2_RS, 1)"] * cr_lt_resamp) +
+    (Jung2_RS * ab1.trop_coefs["Use_intensityIntense use:poly(percNH_Jung2_RS, 1)"] * cr_int_resamp)
+  
+  # need to add in LU:UI interaction?
+  
+)/(exp(refval_trop))
+
+
+plot(pred_trop)
+summary(pred_trop)
+quantile(pred_trop, 0.90)
+
+
 
 
 
+#### temperate model ####
 
 
 
+load("5_Models/Abundance_Jung2_Temperate.rdata") # ab1.trop
+summary(ab1.temp$model)
+#LogAbun ~ Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) +
+# Predominant_land_use:poly(percNH_Jung2_RS, 1) + Use_intensity:poly(percNH_Jung2_RS, 1) + Predominant_land_use:Use_intensity + 
+# (1 | SS) + (1 | SSB)
 
-# remove wrong realm results
+# get the model coefficients
+ab1.temp_coefs <- fixef(ab1.temp$model)
 
-# combine with other realm
+# the reference value of cropland
+NH_ref <- (0.4 - scalers[2])/scalers[1]
+# what is a useful baseline? try various? 40?
+# reference: all cropland is minimal with X% natural habitat surrounding it. 
+# need to determine an appropriate and feasible amount of NH. 40%?
 
 
+# reference: cropland, minimal, NH = X
+refval_temp <- (ab1.temp_coefs["(Intercept)"] + 
+                  (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
+                  (ab1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * NH_ref) + 
+                  (ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * NH_ref))
 
-# crop to harvest area using the binary map?
 
 
+pred_temp <- exp(
+  
+  # intercept +
+  # coef cropland + (assuming not needing * total crop area map)
+  # Nh map * NHCoef +
+  # coef UIlight * fracUIlight +
+  # coef UIint * fract UI int +
+  # NHmap * coef NH:LUcrop +
+  # NHmap * coef NH:uilight * fract lgiht
+  # NHmap * coef NH:int * frac int
+  
+  ab1.temp_coefs["(Intercept)"] + 
+    
+    # cropland area  
+    (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
+    
+    # amount of NH    
+    (ab1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+    
+    # use intensity  
+    (ab1.temp_coefs["Use_intensityLight use"] * cr_lt_resamp) +
+    (ab1.temp_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
+    
+    # use intensity natural habitat interactions  
+    (Jung2_RS * ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+    (Jung2_RS * ab1.temp_coefs["Use_intensityLight use:poly(percNH_Jung2_RS, 1)"] * cr_lt_resamp) +
+    (Jung2_RS * ab1.temp_coefs["Use_intensityIntense use:poly(percNH_Jung2_RS, 1)"] * cr_int_resamp)
+  
+  # need to add in LU:UI interaction?
+  
+)/exp(refval_temp)
 
 
+# set values within a certain extent to NA
 
+extent_NA_temp <- extent(matrix(c(-180, -23.44,  180, 23.44), nrow=2))
 
+extent_NA_trop1 <- extent(matrix(c(-180,  23.44, 180, 90), nrow=2))
+extent_NA_trop2 <- extent(matrix(c(-180, -90, 180, -23.44), nrow=2))
 
+# set values out side of the trop/temp extent to NA
 
+# assess number of NAs to check if NA assignment is being completed
+summary(pred_temp) #NA's    6.121259e+08
+summary(pred_trop) #NA's    6.121259e+08
 
+pred_temp[extent_NA_temp] <- NA
+pred_trop[extent_NA_trop1] <- NA
+pred_trop[extent_NA_trop2] <- NA
 
+# warnings 
+# 34: In writeBin(v, x@file@con, size = x@file@dsize) :
+# problem writing to connection
+# 35: In .rasterFromRasterFile(grdfile, band = band, objecttype,  ... :
+#                                size of values file does not match the number of cells (given the data type)
 
+summary(pred_temp) #NA's    
+summary(pred_trop) #NA's    
 
+# combine the trop and temp maps to 
+final_abun_Jung2 <- sum(pred_temp, pred_trop
+                        
+)
 
+# crop to harvested area using the binary map?
 
-#### create a projection matrix ####
 
-# create a table with a row for each cell within cropland area (use binary map)
-# then extract the NH available within each cell
 
 
-# load in the cropped Jung data based on the crop binary map
-NH_crp <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
+# plot map using appropriate axes (seem to be some very high values making it hard to visualise)
 
-#plot(NH_crp)
 
-# extract the data as a dataframe
-proj_mat <- as.data.frame(NH_crp, xy = T)
 
-# remove NAs
-proj_mat <- proj_mat[!is.na(proj_mat$NH_Cropland_Area),]
 
-#head(proj_mat)
 
-# add in the column for cropland
-proj_mat$Predominant_land_use <- "Cropland"
 
-# edit NH column name
-colnames(proj_mat)[3] <- "percNH_Jung4"
 
-# add biodiversity columns
-proj_mat$Species_richness <- 0
-proj_mat$LogAbun <- 0
 
 
-# read in data file
-load("5_Models/PREDICTS_dataset_incNH.rdata") # sites.sub
 
-# read in models
-load("5_Models/Richness_Jung4_finalmod.rdata")
-load("5_Models/Abundance_Jung4_finalmod.rdata")
 
-# set levels
-proj_mat$Predominant_land_use <- factor(proj_mat$Predominant_land_use, levels = levels(sr1$data$Predominant_land_use))
-
-# just take the columns needed
-model_data <- proj_mat[, 3:6]
-
-# try to reduce the size of the model_data object by just taking unique values of percNH_jung4
-model_data <- unique(model_data)
-
-# set a reference row- here where NH is 100%, but is this the best comparison, perhaps 50%?
-ref_row <- which(model_data$percNH_Jung4 == 1)
-
-# predict the values for both the abundance and richness 
-Pred_abun <- PredictGLMERRandIter(model = ab1$model, data = model_data)
-Pred_rich <- PredictGLMERRandIter(model = sr1$model, data = model_data)
-
-
-# back transform the values
-Pred_abun <- exp(Pred_abun)-1
-Pred_rich <- exp(Pred_rich)
-
-# convert to relative to reference
-Pred_abun <- sweep(x = Pred_abun,MARGIN = 2,STATS = Pred_abun[ref_row,],FUN = '/')
-Pred_rich <- sweep(x = Pred_rich,MARGIN = 2,STATS = Pred_rich[ref_row,],FUN = '/')
-
-
-# Get the median, upper and lower quants 
-model_data$PredMedian_AB <- ((apply(X = Pred_abun,MARGIN = 1,
-                         FUN = median,na.rm=TRUE))*100)-100
-model_data$PredUpper_AB <- ((apply(X = Pred_abun,MARGIN = 1,
-                        FUN = quantile,probs = 0.975,na.rm=TRUE))*100)-100
-model_data$PredLower_AB <- ((apply(X = Pred_abun,MARGIN = 1,
-                        FUN = quantile,probs = 0.025,na.rm=TRUE))*100)-100
-
-
-model_data$PredMedian_SR <- ((apply(X = Pred_rich,MARGIN = 1,
-                         FUN = median,na.rm=TRUE))*100)-100
-model_data$PredUpper_SR <- ((apply(X = Pred_rich,MARGIN = 1,
-                        FUN = quantile,probs = 0.975,na.rm=TRUE))*100)-100
-model_data$PredLower_SR <- ((apply(X = Pred_rich,MARGIN = 1,
-                        FUN = quantile,probs = 0.025,na.rm=TRUE))*100)-100
-
-
-# fill in predictions in complete matrix table proj_mat alongside lat/lon info for mapping
-# match by Jung4 value
-
-map_data <- merge(model_data, proj_mat)
-
-# save as Rdata file
-save(map_data, file = paste0(outdir, "Map_data_perchange.rdata"))
-
-#load(paste0(outdir, "Map_data_perchange.rdata"))
-
-
-#### create the maps ####
-
-# turn the dataframe into a raster
-Ab_med <- rasterFromXYZ(map_data[, c(11,12,5)])
-Rich_med <- rasterFromXYZ(map_data[, c(11,12,8)])
-
-# aggregate to a coarser scale?
-Ab_med_agg <- aggregate(Ab_med, fact = 10)
-Rich_med_agg <- aggregate(Rich_med, fact = 10)
-
-# convert back to dataframe for use in ggplot
-plot_data_ab <- as.data.frame(Ab_med_agg$layer, xy = T)
-plot_data_sr <- as.data.frame(Rich_med_agg$layer, xy = T)
-
-# remove the NAs
-plot_data_ab <- plot_data_ab[!is.na(plot_data_ab$layer), ]
-plot_data_sr <- plot_data_sr[!is.na(plot_data_sr$layer), ]
-
-# load world map outline
-map.world <- map_data("world")
-
-
-# plot for abundance
-p1 <- ggplot() +
-          #scale_fill_manual(values = c("#EE0000", "#EE7600", "#EEC900", "#66CD00", "#458B00")) +
-          geom_map(data=map.world, map=map.world,
-                   aes(x=long, y=lat, group=group, map_id=region),
-                   fill= "darkgrey", colour="darkgrey", size=0.1) +
-          geom_tile(data = plot_data_ab, aes(x = x, y = y, fill = layer), na.rm = TRUE, alpha = 0.7) +
-            scale_fill_gradient2(low = c("#EE0000"), mid =  c("#EEAD0E"), high = c("#458B00"), midpoint = median(plot_data_ab$layer),
-                               name = "% change in \ntotal abundance") +
-          theme_bw() +
-          theme(axis.title = element_blank(), 
-                plot.background = element_blank(), 
-                panel.background = element_blank(),
-                axis.text = element_blank(),
-                axis.ticks = element_blank(),
-                panel.grid = element_blank(), 
-                legend.position = "bottom", 
-                legend.title = element_text(size = 10),
-                legend.text = element_text(size = 10),
-                panel.border = element_blank()) +
-            guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5))
-
-
-# plot for richness
-p2 <- ggplot() +
-  #scale_fill_manual(values = c("#EE0000", "#EE7600", "#EEC900", "#66CD00", "#458B00")) +
-  geom_map(data=map.world, map=map.world,
-           aes(x=long, y=lat, group=group, map_id=region),
-           fill= "darkgrey", colour="darkgrey", size=0.1) +
-  geom_tile(data = plot_data_sr, aes(x = x, y = y, fill = layer), na.rm = TRUE, alpha = 0.7) +
-  scale_fill_gradient2(low = c("#EE0000"), mid =  c("#EEAD0E"), high = c("#458B00"), midpoint = median(plot_data_sr$layer),
-                       name = "% change in \nspecies richness") +
-  theme_bw() +
-  theme(axis.title = element_blank(), 
-        plot.background = element_blank(), 
-        panel.background = element_blank(),
-        axis.text = element_blank(),
-        axis.ticks = element_blank(),
-        panel.grid = element_blank(), 
-        legend.position = "bottom",
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 10),
-        panel.border = element_blank()) +
-  guides(fill = guide_colourbar(title.position="top", title.hjust = 0.5))
-
-# organise plots into panels
-p3 <- plot_grid(p1, p2, nrow = 2)
-
-# save plot (A5 size)
-ggsave2(p3, filename = paste0(outdir, "All_biodiv_ab_sr_maps.pdf"), height = 8.27, width = 5.83, units = "in")
-
-
-
-
-##%######################################################%##
-#                                                          #
-####              Including use intensity               ####
-#                                                          #
-##%######################################################%##
-
-# Here projections are done a little differentlys o that use intesity can be used. 
-
-# following example code for Arc/python analyses used aaages ago. 
-
-ref_value <- 
 
