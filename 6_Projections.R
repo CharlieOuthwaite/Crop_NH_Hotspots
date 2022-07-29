@@ -36,56 +36,61 @@ if(!dir.exists(outdir)) dir.create(outdir)
 
 # this section can just be run once, and then rasters created just read in later
 
-
-# files from Tim for land use use intensity combo in here
-proj_data <- "Z:/Datasets/LandUseIntensity_globalmap_fromTim/02Projections_02ProjectLUIntensity"
-
-# first 3 files are cropland Int Lt Min, are these proportions of area?
-NH_projs <- list.files(proj_data, pattern = "raster.tif$")
-
-
-# read in the rasters
-cr_int <- raster(paste0(proj_data, "/", NH_projs[1]))
-cr_lt <- raster(paste0(proj_data, "/", NH_projs[2]))
-cr_min <- raster(paste0(proj_data, "/", NH_projs[3]))
-
-# take a look
-# plot(cr_int)
-# plot(cr__lt)
-# plot(cr_min)
-
-
-# read in the fractional natural habitat data
-Jung4 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
-Jung2 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_two.tif"))
-
-
-# resample to get them in the same resolution and extent
-cr_int_resamp <- projectRaster(cr_int, Jung4, method = 'bilinear')
-cr_lt_resamp <- projectRaster(cr_lt, Jung4, method = 'bilinear')
-cr_min_resamp <- projectRaster(cr_min, Jung4, method = 'bilinear')
-
-
-# save the resampled versions
-writeRaster(cr_int_resamp, filename = paste0(outdir, "/resampled_crp_int_layer.tif"), format = "GTiff")
-writeRaster(cr_lt_resamp, filename = paste0(outdir, "/resampled_crp_lt_layer.tif"), format = "GTiff")
-writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.tif"), format = "GTiff")
-
-
-
-# determine total area of cropland in a cell
-total_crp <- sum(cr_min_resamp, cr_lt_resamp, cr_int_resamp)
-
-writeRaster(total_crp, filename = paste0(outdir, "/resampled_total_cropland_layer.tif"), format = "GTiff")
-
-# Rescale the NH data 
-
-Jung2_RS <- scale(Jung2) # actually, do I need to scale using values used in predicts dataset? 
-#But all proportions so max/min values should be similar.
-writeRaster(Jung2_RS, filename = paste0(outdir, "/Jung2_NH_map_rescaled.tif"), format = "GTiff")
-
-# save space by removing files not needed anymore
-rm(Jung2)
+# 
+# # files from Tim for land use use intensity combo in here
+# proj_data <- "Z:/Datasets/LandUseIntensity_globalmap_fromTim/02Projections_02ProjectLUIntensity"
+# 
+# # first 3 files are cropland Int Lt Min, are these proportions of area?
+# NH_projs <- list.files(proj_data, pattern = "raster.tif$")
+# 
+# 
+# # read in the rasters
+# cr_int <- raster(paste0(proj_data, "/", NH_projs[1]))
+# cr_lt <- raster(paste0(proj_data, "/", NH_projs[2]))
+# cr_min <- raster(paste0(proj_data, "/", NH_projs[3]))
+# 
+# # take a look
+# # plot(cr_int)
+# # plot(cr__lt)
+# # plot(cr_min)
+# 
+# 
+# # read in the fractional natural habitat data
+# Jung4 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_four.tif"))
+# Jung2 <- raster(paste0(datadir, "/NH_Cropland_Area_Jung_two.tif"))
+# 
+# 
+# # resample to get them in the same resolution and extent
+# cr_int_resamp <- projectRaster(cr_int, Jung4, method = 'bilinear')
+# cr_lt_resamp <- projectRaster(cr_lt, Jung4, method = 'bilinear')
+# cr_min_resamp <- projectRaster(cr_min, Jung4, method = 'bilinear')
+# 
+# 
+# # save the resampled versions
+# writeRaster(cr_int_resamp, filename = paste0(outdir, "/resampled_crp_int_layer.tif"), format = "GTiff")
+# writeRaster(cr_lt_resamp, filename = paste0(outdir, "/resampled_crp_lt_layer.tif"), format = "GTiff")
+# writeRaster(cr_min_resamp, filename = paste0(outdir, "/resampled_crp_min_layer.tif"), format = "GTiff")
+# 
+# 
+# 
+# # determine total area of cropland in a cell
+# total_crp <- sum(cr_min_resamp, cr_lt_resamp, cr_int_resamp)
+# 
+# writeRaster(total_crp, filename = paste0(outdir, "/resampled_total_cropland_layer.tif"), format = "GTiff")
+# 
+# # Rescale the NH data 
+# 
+# Jung2_RS <- scale(Jung2) # actually, do I need to scale using values used in predicts dataset? 
+# #But all proportions so max/min values should be similar.
+# writeRaster(Jung2_RS, filename = paste0(outdir, "/Jung2_NH_map_rescaled.tif"), format = "GTiff")
+# 
+# Jung4_RS <- scale(Jung4) # actually, do I need to scale using values used in predicts dataset? 
+# #But all proportions so max/min values should be similar.
+# writeRaster(Jung4_RS, filename = paste0(outdir, "/Jung4_NH_map_rescaled.tif"), format = "GTiff")
+# 
+# 
+# # save space by removing files not needed anymore
+# rm(Jung2, Jung4)
 
 ##%######################################################%##
 #                                                          #
@@ -101,6 +106,7 @@ rich_models <- list.files(path = "5_Models/", pattern = "Richness")
 # load in datasets to avoid rerunning above
 total_crp <- raster(paste0(outdir, "/resampled_total_cropland_layer.tif"))
 Jung2_RS <- raster(paste0(outdir, "/Jung2_NH_map_rescaled.tif"))
+Jung4_RS <- raster(paste0(outdir, "/Jung4_NH_map_rescaled.tif"))
 cr_int_resamp <- raster(paste0(outdir, "/resampled_crp_int_layer.tif"))
 cr_lt_resamp <- raster(paste0(outdir, "/resampled_crp_lt_layer.tif"))
 cr_min_resamp <- raster(paste0(outdir, "/resampled_crp_min_layer.tif"))
@@ -444,7 +450,7 @@ for(i in c("2", "4")){
   load(file ="5_MOdels/PREDICTS_dataset_incNH_POLLINATORS.rdata") # sites.sub
   
   if(i == "2"){
-      scalers <- c(attr(sites.sub.pols$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub$percNH_Jung2_RS, "scaled:center"))
+      scalers <- c(attr(sites.sub.pols$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub.pols$percNH_Jung2_RS, "scaled:center"))
   }else{
     scalers <- c(attr(sites.sub.pols$percNH_Jung4_RS, "scaled:scale"), attr(sites.sub.pols$percNH_Jung4_RS, "scaled:center"))
   }
@@ -704,7 +710,7 @@ for(i in c("2", "4")){
 
 ##%######################################################%##
 #                                                          #
-####                Richness ALL BIODIV                 ####
+####                RICHNESS ALL BIODIV                 ####
 #                                                          #
 ##%######################################################%##
 
@@ -1014,7 +1020,7 @@ for(i in c("2", "4")){
 rich_models
 
 # select pollinator models
-job_list <- abun_models[grep("POLL", rich_models)]
+job_list <- rich_models[grep("POLL", rich_models)]
 
 
 # loop through for Jung2 then Jung4
@@ -1034,10 +1040,10 @@ for(i in c("2", "4")){
   #rm(ab1.trop)
   
   # get the scalers
-  load(file ="5_MOdels/PREDICTS_dataset_incNH_POLLINATORS.rdata") # sites.sub
+  load(file ="5_Models/PREDICTS_dataset_incNH_POLLINATORS.rdata") # sites.sub
   
   if(i == "2"){
-    scalers <- c(attr(sites.sub.pols$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub$percNH_Jung2_RS, "scaled:center"))
+    scalers <- c(attr(sites.sub.pols$percNH_Jung2_RS, "scaled:scale"), attr(sites.sub.pols$percNH_Jung2_RS, "scaled:center"))
   }else{
     scalers <- c(attr(sites.sub.pols$percNH_Jung4_RS, "scaled:scale"), attr(sites.sub.pols$percNH_Jung4_RS, "scaled:center"))
   }
