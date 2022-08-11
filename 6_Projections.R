@@ -1282,7 +1282,7 @@ for(i in c("2", "4")){
   
   
   # load tropical map back in
-  pred_trop <- raster(paste0(outdir, "Projection_Rasters/projection_raster_all_Jung", i, "_richness_tropical_POLS.tif"))
+  pred_trop <- raster(paste0(outdir, "Projection_Rasters/projection_raster_all_Jung", i, "_richness_trop_POLS.tif"))
   
   
   final_abun_Jung <- merge(pred_trop, pred_temp)
@@ -1306,54 +1306,126 @@ for(i in c("2", "4")){
 #                                                          #
 ##%######################################################%##
 
-
-
-#### Create nicer plots ####
-i <- 2
-final_abun_Jung2 <- raster(paste0(outdir, "/Projection_Rasters/Abundance_Jung", i, "_difference_to_ref.tif"))
-
+# these are the files for the percentage change created above
+files4plot <- list.files(paste0(outdir, "Projection_Rasters/"), pattern = "difference_to_ref")
 
 library(ggplot2)
 library(maptools)
 
-# need country polygons
-map.world <- map_data('world')
+
+plotdir <- paste0(outdir, "Plots/")
+if(!dir.exists(plotdir))dir.create(plotdir)
+
+#### Create nicer plots ####
+
+
+#### ABUNDANCE PLOTS ####
+
+for(i in 1:4){
+  
+plotdat <- raster(paste0(outdir, "Projection_Rasters/", files4plot[i]))  
+  
+  
+# Need to aggregate to a coarser resolution for plotting, cannot allocate vector error.
+plotdat <- aggregate(plotdat, fact = 10)
+
 
 
 # crop to country polygons?
 
-# Need to aggregate to a coarser resolution for plotting, cannot allocate vector error.
-final_abun_Jung2_agg <- aggregate(final_abun_Jung2, fact = 10)
-
-
-
 # crop to harvested area using the binary map?
-
 # use the cropland area mask as the base
 #crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
 # crop map is at a 5x5km grid
 
-rastdata <- as.data.frame(final_abun_Jung2_agg, xy = T)
+rastdata <- as.data.frame(plotdat, xy = T)
+names(rastdata)[3] <- "layer"
 rastdata <- rastdata[!is.na(rastdata$layer) ,]
 
 # plot map using appropriate axes (seem to be some very high values making it hard to visualise)
 
 brks <- c(-100, -50, 0, 100,  1000)
-cols <- c("#CD0000", "#EE5C42", "#FFFFFF", "#FFC125", "#66CD00", "#006400")
+cols <- c("#CD0000", "#EE5C42", "#FFC125", "#66CD00", "#006400")
+
+
+# need country polygons
+map.world <- map_data('world')
+
 
 p1 <- ggplot() +
-      geom_map(data=map.world, map=map.world,
-               aes(x=long, y=lat, group=group, map_id=region),
-               fill= NA, colour="grey", size=0.2) + 
-      geom_tile(data = rastdata[rastdata$layer < 1000, ], aes(x = x, y = y, fill = rastdata[rastdata$layer < 1000, 3])) + 
-      theme(panel.background = element_blank(), 
-            panel.border = element_rect(colour = "grey", fill = NA), 
-            axis.title = element_blank()) + 
+  geom_map(data=map.world, map=map.world,
+           aes(x=long, y=lat, group=group, map_id=region),
+           fill= NA, colour="grey", size=0.2) + 
+  geom_tile(data = rastdata[rastdata$layer < 1000, ], aes(x = x, y = y, fill = rastdata[rastdata$layer < 1000, 3])) + 
+  #geom_tile(data = rastdata, aes(x = x, y = y, fill = 'layer')) + 
+  theme(panel.background = element_blank(), 
+        panel.border = element_rect(colour = "grey", fill = NA), 
+        axis.title = element_blank()) + 
   scale_fill_gradientn(colours = cols, breaks = brks, values = scales::rescale(brks)) + 
   labs(fill = "% change \nin abundance")
 
 
-ggsave(filename = paste0(outdir, "PLOT_perc_change_abun_jung2.pdf"))
+ggsave(p1, filename = paste0(outdir, "Plots", "/PLOT_", sub(".tif", "", files4plot[i]), ".pdf"))
+
+  
+}
+
+
+
+
+#### RICHNESS PLOTS ####
+
+for(i in 5:8){
+  
+  plotdat <- raster(paste0(outdir, "Projection_Rasters/", files4plot[i]))  
+  
+  
+  # Need to aggregate to a coarser resolution for plotting, cannot allocate vector error.
+  plotdat <- aggregate(plotdat, fact = 10)
+  
+  
+  
+  # crop to country polygons?
+  
+  # crop to harvested area using the binary map?
+  # use the cropland area mask as the base
+  #crop_bin <- raster("1_PrepareCropLayers/CroplandBinary.tif")
+  # crop map is at a 5x5km grid
+  
+  rastdata <- as.data.frame(plotdat, xy = T)
+  names(rastdata)[3] <- "layer"
+  rastdata <- rastdata[!is.na(rastdata$layer) ,]
+  
+  # plot map using appropriate axes (seem to be some very high values making it hard to visualise)
+  
+  brks <- c(-100, -50, 0, 100,  1000)
+  cols <- c("#CD0000", "#EE5C42", "#FFC125", "#66CD00", "#006400")
+  
+  
+  # need country polygons
+  map.world <- map_data('world')
+  
+  
+  p1 <- ggplot() +
+    geom_map(data=map.world, map=map.world,
+             aes(x=long, y=lat, group=group, map_id=region),
+             fill= NA, colour="grey", size=0.2) + 
+    geom_tile(data = rastdata[rastdata$layer < 1000, ], aes(x = x, y = y, fill = rastdata[rastdata$layer < 1000, 3])) + 
+    #geom_tile(data = rastdata, aes(x = x, y = y, fill = 'layer')) + 
+    theme(panel.background = element_blank(), 
+          panel.border = element_rect(colour = "grey", fill = NA), 
+          axis.title = element_blank()) + 
+    scale_fill_gradientn(colours = cols, breaks = brks, values = scales::rescale(brks)) + 
+    labs(fill = "% change \nin species richness")
+  
+  
+  ggsave(p1, filename = paste0(outdir, "Plots", "/PLOT_", sub(".tif", "", files4plot[i]), ".pdf"))
+  
+  
+}
+
+
+
 
 
 
