@@ -26,11 +26,11 @@ library(exactextractr) # exact_extract function from here
 # directories
 datadir <- "2_PrepareNaturalHabitatLayer/"
 outdir <- "4_Country_NH_summaries/"
-dir.create(outdir)
+if(!dir.exists(outdir)) dir.create(outdir)
 
 # read in the fractional natural habitat data
-#NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_two.tif"))
-NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_four.tif"))
+NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_two.tif"))
+#NatHabCrop <- raster(paste0(datadir, "NH_Cropland_Area_Jung_four.tif"))
 
 # convert to actual % values
 #NatHabCrop <- NatHabCrop*100
