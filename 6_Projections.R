@@ -80,13 +80,19 @@ if(!dir.exists(outdir)) dir.create(outdir)
 # 
 # # Rescale the NH data 
 # 
-# Jung2_RS <- scale(Jung2) # actually, do I need to scale using values used in predicts dataset? 
-# #But all proportions so max/min values should be similar.
-# writeRaster(Jung2_RS, filename = paste0(outdir, "/Jung2_NH_map_rescaled.tif"), format = "GTiff")
-# 
-# Jung4_RS <- scale(Jung4) # actually, do I need to scale using values used in predicts dataset? 
-# #But all proportions so max/min values should be similar.
-# writeRaster(Jung4_RS, filename = paste0(outdir, "/Jung4_NH_map_rescaled.tif"), format = "GTiff")
+# use values for scaling that were used for the values for PREDICTS sites
+
+# load in scalers
+ # scalers <- read.csv("5_Models/NH_Jungdata_scalers.csv")
+ # 
+ # Jung2_RS <- (Jung2 - scalers[1,2])/(scalers[1,3])
+ # 
+ # writeRaster(Jung2_RS, filename = paste0(outdir, "/Jung2_NH_map_rescaled.tif"), format = "GTiff", overwrite = T)
+ 
+# and the other one
+ # Jung4_RS <- (Jung4 - scalers[2,2])/(scalers[2,3])
+ # 
+ # writeRaster(Jung4_RS, filename = paste0(outdir, "/Jung4_NH_map_rescaled.tif"), format = "GTiff", overwrite = T)
 # 
 # 
 # # save space by removing files not needed anymore
