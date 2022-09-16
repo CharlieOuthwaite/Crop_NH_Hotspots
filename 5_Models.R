@@ -236,6 +236,16 @@ sites.sub$percNH_Jung4_log_RS <- scale(log(sites.sub$percNH_Jung4+1))
 
 save(sites.sub, file = paste0(outdir, "/PREDICTS_dataset_incNH.rdata"))
 
+# save scaling values in a table for later
+Jung2_cen <- attr(sites.sub$percNH_Jung2_RS, "scaled:center")
+Jung2_scale <- attr(sites.sub$percNH_Jung2_RS, "scaled:scale")
+Jung4_cen <- attr(sites.sub$percNH_Jung4_RS, "scaled:center")
+Jung4_scale <- attr(sites.sub$percNH_Jung4_RS, "scaled:scale")
+
+scalers <- data.frame(center = c(Jung2_cen, Jung4_cen), scale = c(Jung2_scale, Jung4_scale))
+rownames(scalers) <- c("Jung2", "Jung4")
+write.csv(scalers, file = paste0(outdir, "/NH_Jungdata_scalers.csv"))
+
 # check factor levels, ensure primary vegetation is the baseline
 levels(sites.sub$Predominant_land_use)
 
