@@ -126,7 +126,9 @@ abun_models
    
 job_list <- abun_models[grep("POLL", abun_models, invert = T)]
    
-   
+
+# i <- 2 
+  
  # loop through for Jung2 then Jung4
  for(i in c("2", "4")){
    
