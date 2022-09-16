@@ -47,4 +47,11 @@ vignettes/*.pdf
 3_PrepareFAOData/
 4_Country_NH_summaries/
 5_Models/
+5b_Model_plots/
 6_Projections/
+
+# exploratory markdowns and other files
+Comparing NH data.rmd
+Comparing_NH_data.pdf
+Comparing_NH_data_files/
+PLot_comparisons_Jung2_4.pptx
