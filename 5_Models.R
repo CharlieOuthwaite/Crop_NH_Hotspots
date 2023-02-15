@@ -448,6 +448,8 @@ ggsave2(filename = paste0(outdir, "/Jung_data_histograms.pdf"), p3, height = 3, 
 #                                                          #
 ##%######################################################%##
 
+load(file = paste0(outdir, "/PREDICTS_dataset_incNH.rdata"))
+
 
 #### Richness Realm ####
 
@@ -460,6 +462,7 @@ model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 8147 rows
 
 # 2. removing realm and interactions with realm
 mod_struc <- "Predominant_land_use + Use_intensity + percNH_Jung2_RS + Predominant_land_use:percNH_Jung2_RS + Use_intensity:percNH_Jung2_RS + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + percNH_Jung4_RS + Predominant_land_use:percNH_Jung4_RS + Use_intensity:percNH_Jung4_RS + Predominant_land_use:Use_intensity"
 #mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
 #mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
 
@@ -491,21 +494,23 @@ summary(sr1.temp$model)
 
 save(sr1.trop, file = paste0(outdir, "/Richness_Jung2_Tropical_nopoly.rdata"))
 save(sr1.temp, file = paste0(outdir, "/Richness_Jung2_Temperate_nopoly.rdata"))
-#save(sr1.trop, file = paste0(outdir, "/Richness_Jung4_Tropical.rdata"))
-#save(sr1.temp, file = paste0(outdir, "/Richness_Jung4_Temperate.rdata"))
+#save(sr1.trop, file = paste0(outdir, "/Richness_Jung4_Tropical_nopoly.rdata"))
+#save(sr1.temp, file = paste0(outdir, "/Richness_Jung4_Temperate_nopoly.rdata"))
 
 
 #### Abundance Realm ####
 
-model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
-#model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+#model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung2', 'percNH_Jung2_RS', "percNH_Jung2_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
+model_data <- na.omit(sites.sub[,c('LogAbun','Predominant_land_use', 'percNH_Jung4', 'percNH_Jung4_RS', "percNH_Jung4_log_RS","Use_intensity", 'Tropical', 'Biome', 'SS','SSB','SSBS')])
 
 model_data_trop <- model_data[model_data$Tropical == "Tropical", ] # 4708 rows
 model_data_temp <- model_data[model_data$Tropical == "Temperate", ] # 6688 rows
 
 
 # 2. removing realm and interactions with realm
-mod_struc <- "Predominant_land_use + Use_intensity + percNH_Jung2_RS + Predominant_land_use:percNH_Jung2_RS + Use_intensity:percNH_Jung2_RS + Predominant_land_use:Use_intensity"
+#mod_struc <- "Predominant_land_use + Use_intensity + percNH_Jung2_RS + Predominant_land_use:percNH_Jung2_RS + Use_intensity:percNH_Jung2_RS + Predominant_land_use:Use_intensity"
+mod_struc <- "Predominant_land_use + Use_intensity + percNH_Jung4_RS + Predominant_land_use:percNH_Jung4_RS + Use_intensity:percNH_Jung4_RS + Predominant_land_use:Use_intensity"
+
 #mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung2_RS, 1) + Predominant_land_use:poly(percNH_Jung2_RS,1) + Use_intensity:poly(percNH_Jung2_RS,1) + Predominant_land_use:Use_intensity"
 #mod_struc <- "Predominant_land_use + Use_intensity + poly(percNH_Jung4_RS, 1) + Predominant_land_use:poly(percNH_Jung4_RS,1) + Use_intensity:poly(percNH_Jung4_RS,1) + Predominant_land_use:Use_intensity"
 
@@ -537,8 +542,8 @@ summary(ab1.temp$model)
 
 save(ab1.trop, file = paste0(outdir, "/Abundance_Jung2_Tropical_nopoly.rdata"))
 save(ab1.temp, file = paste0(outdir, "/Abundance_Jung2_Temperate_nopoly.rdata"))
-#save(ab1.trop, file = paste0(outdir, "/Abundance_Jung4_Tropical.rdata"))
-#save(ab1.temp, file = paste0(outdir, "/Abundance_Jung4_Temperate.rdata"))
+#save(ab1.trop, file = paste0(outdir, "/Abundance_Jung4_Tropical_nopoly.rdata"))
+#save(ab1.temp, file = paste0(outdir, "/Abundance_Jung4_Temperate_nopoly.rdata"))
 
 
 
