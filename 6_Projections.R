@@ -133,7 +133,7 @@ abun_models
    
 #job_list <- abun_models[grep("POLL", abun_models, invert = T)]
 
-job_list <- abun_models[grep("nopoly", abun_models)]   
+job_list <- abun_models[grep("nopoly", abun_models)]   # one trop and one temp for abun no poly
 
 # i <- 2 
   
@@ -297,14 +297,14 @@ job_list <- abun_models[grep("nopoly", abun_models)]
   # reference: cropland, minimal, NH = X
   refval_temp <- (ab1.temp_coefs["(Intercept)"] + 
                     (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
-                    (ab1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * NH_ref) + 
-                    (ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * NH_ref))
+                    (ab1.temp_coefs["percNH_Jung2_RS"] * NH_ref) + 
+                    (ab1.temp_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * NH_ref))
   }else{
     # reference: cropland, minimal, NH = X
     refval_temp <- (ab1.temp_coefs["(Intercept)"] + 
                       (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
-                      (ab1.temp_coefs["poly(percNH_Jung4_RS, 1)"] * NH_ref) + 
-                      (ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * NH_ref))
+                      (ab1.temp_coefs["percNH_Jung4_RS"] * NH_ref) + 
+                      (ab1.temp_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * NH_ref))
   }
     
   if(i == "2"){
@@ -326,16 +326,16 @@ job_list <- abun_models[grep("nopoly", abun_models)]
       (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
       
       # amount of NH    
-      (ab1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+      (ab1.temp_coefs["percNH_Jung2_RS"] * Jung2_RS) + 
       
       # use intensity  
       (ab1.temp_coefs["Use_intensityLight use"] * cr_lt_resamp) +
       (ab1.temp_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
       
       # use intensity natural habitat interactions  
-      (Jung2_RS * ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * total_crp) + 
-      (Jung2_RS * ab1.temp_coefs["Use_intensityLight use:poly(percNH_Jung2_RS, 1)"] * cr_lt_resamp) +
-      (Jung2_RS * ab1.temp_coefs["Use_intensityIntense use:poly(percNH_Jung2_RS, 1)"] * cr_int_resamp) +
+      (Jung2_RS * ab1.temp_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * total_crp) + 
+      (Jung2_RS * ab1.temp_coefs["Use_intensityLight use:percNH_Jung2_RS"] * cr_lt_resamp) +
+      (Jung2_RS * ab1.temp_coefs["Use_intensityIntense use:percNH_Jung2_RS"] * cr_int_resamp) +
     
     # added LU:UI interaction
       (ab1.temp_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
@@ -361,16 +361,16 @@ job_list <- abun_models[grep("nopoly", abun_models)]
         (ab1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
         
         # amount of NH    
-        (ab1.temp_coefs["poly(percNH_Jung4_RS, 1)"] * Jung4_RS) + 
+        (ab1.temp_coefs["percNH_Jung4_RS"] * Jung4_RS) + 
         
         # use intensity  
         (ab1.temp_coefs["Use_intensityLight use"] * cr_lt_resamp) +
         (ab1.temp_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
         
         # use intensity natural habitat interactions  
-        (Jung4_RS * ab1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * total_crp) + 
-        (Jung4_RS * ab1.temp_coefs["Use_intensityLight use:poly(percNH_Jung4_RS, 1)"] * cr_lt_resamp) +
-        (Jung4_RS * ab1.temp_coefs["Use_intensityIntense use:poly(percNH_Jung4_RS, 1)"] * cr_int_resamp) +
+        (Jung4_RS * ab1.temp_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * total_crp) + 
+        (Jung4_RS * ab1.temp_coefs["Use_intensityLight use:percNH_Jung4_RS"] * cr_lt_resamp) +
+        (Jung4_RS * ab1.temp_coefs["Use_intensityIntense use:percNH_Jung4_RS"] * cr_int_resamp) +
         
         # added LU:UI interaction
         (ab1.temp_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
@@ -727,8 +727,9 @@ for(i in c("2", "4")){
 # loop through Jung2 then Jung4
 rich_models
 
-job_list <- rich_models[grep("POLL", rich_models, invert = T)]
+job_list <- rich_models[grep("nopoly", rich_models)]   # one trop and one temp for rich no poly
 
+# i <- 2 
 
 # loop through for Jung2 then Jung4
 for(i in c("2", "4")){
@@ -768,9 +769,9 @@ for(i in c("2", "4")){
         # cropland area
         (sr1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
         # Amount of NH
-        (sr1.trop_coefs["poly(percNH_Jung2_RS, 1)"] * NH_ref) + 
+        (sr1.trop_coefs["percNH_Jung2_RS"] * NH_ref) + 
         # interaction: LU:NH
-        (sr1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * NH_ref * total_crp))
+        (sr1.trop_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * NH_ref * total_crp))
     #summary(refval_trop)
   } else {
     refval_trop <- (# intercept
@@ -778,9 +779,9 @@ for(i in c("2", "4")){
         # cropland area
         (sr1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
         # Amount of NH
-        (sr1.trop_coefs["poly(percNH_Jung4_RS, 1)"] * NH_ref) + 
+        (sr1.trop_coefs["percNH_Jung4_RS"] * NH_ref) + 
         # interaction: LU:NH
-        (sr1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * NH_ref * total_crp))
+        (sr1.trop_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * NH_ref * total_crp))
     #summary(refval_trop)
   }
   
@@ -803,16 +804,16 @@ for(i in c("2", "4")){
         (sr1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
         
         # amount of NH    
-        (sr1.trop_coefs["poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+        (sr1.trop_coefs["percNH_Jung2_RS"] * Jung2_RS) + 
         
         # use intensity  
         (sr1.trop_coefs["Use_intensityLight use"] * cr_lt_resamp) +
         (sr1.trop_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
         
         # natural habitat interactions  
-        (Jung2_RS * sr1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * total_crp) + 
-        (Jung2_RS * sr1.trop_coefs["Use_intensityLight use:poly(percNH_Jung2_RS, 1)"] * cr_lt_resamp) +
-        (Jung2_RS * sr1.trop_coefs["Use_intensityIntense use:poly(percNH_Jung2_RS, 1)"] * cr_int_resamp) +
+        (Jung2_RS * sr1.trop_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * total_crp) + 
+        (Jung2_RS * sr1.trop_coefs["Use_intensityLight use:percNH_Jung2_RS"] * cr_lt_resamp) +
+        (Jung2_RS * sr1.trop_coefs["Use_intensityIntense use:percNH_Jung2_RS"] * cr_int_resamp) +
         
         # added LU:UI interaction
         (sr1.trop_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
@@ -838,16 +839,16 @@ for(i in c("2", "4")){
         (sr1.trop_coefs["Predominant_land_useCropland"] * total_crp) +
         
         # amount of NH    
-        (sr1.trop_coefs["poly(percNH_Jung4_RS, 1)"] * Jung4_RS) + 
+        (sr1.trop_coefs["percNH_Jung4_RS"] * Jung4_RS) + 
         
         # use intensity  
         (sr1.trop_coefs["Use_intensityLight use"] * cr_lt_resamp) +
         (sr1.trop_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
         
         # natural habitat interactions  
-        (Jung4_RS * sr1.trop_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * total_crp) + 
-        (Jung4_RS * sr1.trop_coefs["Use_intensityLight use:poly(percNH_Jung4_RS, 1)"] * cr_lt_resamp) +
-        (Jung4_RS * sr1.trop_coefs["Use_intensityIntense use:poly(percNH_Jung4_RS, 1)"] * cr_int_resamp) +
+        (Jung4_RS * sr1.trop_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * total_crp) + 
+        (Jung4_RS * sr1.trop_coefs["Use_intensityLight use:percNH_Jung4_RS"] * cr_lt_resamp) +
+        (Jung4_RS * sr1.trop_coefs["Use_intensityIntense use:percNH_Jung4_RS"] * cr_int_resamp) +
         
         # added LU:UI interaction
         (sr1.trop_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
@@ -890,14 +891,14 @@ for(i in c("2", "4")){
     # reference: cropland, minimal, NH = X
     refval_temp <- (sr1.temp_coefs["(Intercept)"] + 
                       (sr1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
-                      (sr1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * NH_ref) + 
-                      (sr1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * NH_ref))
+                      (sr1.temp_coefs["percNH_Jung2_RS"] * NH_ref) + 
+                      (sr1.temp_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * NH_ref))
   }else{
     # reference: cropland, minimal, NH = X
     refval_temp <- (sr1.temp_coefs["(Intercept)"] + 
                       (sr1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
-                      (sr1.temp_coefs["poly(percNH_Jung4_RS, 1)"] * NH_ref) + 
-                      (sr1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * NH_ref))
+                      (sr1.temp_coefs["percNH_Jung4_RS"] * NH_ref) + 
+                      (sr1.temp_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * NH_ref))
   }
   
   if(i == "2"){
@@ -919,16 +920,16 @@ for(i in c("2", "4")){
         (sr1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
         
         # amount of NH    
-        (sr1.temp_coefs["poly(percNH_Jung2_RS, 1)"] * Jung2_RS) + 
+        (sr1.temp_coefs["percNH_Jung2_RS"] * Jung2_RS) + 
         
         # use intensity  
         (sr1.temp_coefs["Use_intensityLight use"] * cr_lt_resamp) +
         (sr1.temp_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
         
         # use intensity natural habitat interactions  
-        (Jung2_RS * sr1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung2_RS, 1)"] * total_crp) + 
-        (Jung2_RS * sr1.temp_coefs["Use_intensityLight use:poly(percNH_Jung2_RS, 1)"] * cr_lt_resamp) +
-        (Jung2_RS * sr1.temp_coefs["Use_intensityIntense use:poly(percNH_Jung2_RS, 1)"] * cr_int_resamp) +
+        (Jung2_RS * sr1.temp_coefs["Predominant_land_useCropland:percNH_Jung2_RS"] * total_crp) + 
+        (Jung2_RS * sr1.temp_coefs["Use_intensityLight use:percNH_Jung2_RS"] * cr_lt_resamp) +
+        (Jung2_RS * sr1.temp_coefs["Use_intensityIntense use:percNH_Jung2_RS"] * cr_int_resamp) +
         
         # added LU:UI interaction
         (sr1.temp_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
@@ -954,16 +955,16 @@ for(i in c("2", "4")){
         (sr1.temp_coefs["Predominant_land_useCropland"] * total_crp) +
         
         # amount of NH    
-        (sr1.temp_coefs["poly(percNH_Jung4_RS, 1)"] * Jung4_RS) + 
+        (sr1.temp_coefs["percNH_Jung4_RS"] * Jung4_RS) + 
         
         # use intensity  
         (sr1.temp_coefs["Use_intensityLight use"] * cr_lt_resamp) +
         (sr1.temp_coefs["Use_intensityIntense use"] * cr_int_resamp) + 
         
         # use intensity natural habitat interactions  
-        (Jung4_RS * sr1.temp_coefs["Predominant_land_useCropland:poly(percNH_Jung4_RS, 1)"] * total_crp) + 
-        (Jung4_RS * sr1.temp_coefs["Use_intensityLight use:poly(percNH_Jung4_RS, 1)"] * cr_lt_resamp) +
-        (Jung4_RS * sr1.temp_coefs["Use_intensityIntense use:poly(percNH_Jung4_RS, 1)"] * cr_int_resamp) +
+        (Jung4_RS * sr1.temp_coefs["Predominant_land_useCropland:percNH_Jung4_RS"] * total_crp) + 
+        (Jung4_RS * sr1.temp_coefs["Use_intensityLight use:percNH_Jung4_RS"] * cr_lt_resamp) +
+        (Jung4_RS * sr1.temp_coefs["Use_intensityIntense use:percNH_Jung4_RS"] * cr_int_resamp) +
         
         # added LU:UI interaction
         (sr1.temp_coefs["Predominant_land_useCropland:Use_intensityLight use"] * cr_lt_resamp) +
