@@ -13,17 +13,17 @@ library(ggplot2)
 library(cowplot)
 
 # directories
-datadir <- "5_MOdels"
+datadir <- "5_Models"
 outdir <- "5b_Model_plots"
 if(!dir.exists(outdir)) dir.create(outdir)
 
 
 # load in the models
 # all biodiversity
-load(paste0(datadir, "/Richness_Jung2_Tropical.rdata")) # sr1.trop
-load(paste0(datadir, "/Richness_Jung2_Temperate.rdata")) # sr1.temp
-load(paste0(datadir, "/Abundance_Jung2_Tropical.rdata")) # ab1.trop
-load(paste0(datadir, "/Abundance_Jung2_Temperate.rdata")) # ab1.temp
+load(paste0(datadir, "/Richness_Jung2_Tropical_nopoly.rdata")) # sr1.trop
+load(paste0(datadir, "/Richness_Jung2_Temperate_nopoly.rdata")) # sr1.temp
+load(paste0(datadir, "/Abundance_Jung2_Tropical_nopoly.rdata")) # ab1.trop
+load(paste0(datadir, "/Abundance_Jung2_Temperate_nopoly.rdata")) # ab1.temp
 
 
 ## load in the dataset ##
@@ -138,7 +138,7 @@ ggplot(data = plot_data2)+
   theme_custom +
   theme(legend.position = c(0.1,0.9), strip.background = element_rect(fill = NA, size = 0.2))
 
-ggsave(filename = paste0(outdir, "/Rich_LUUI_Jung2.pdf"), width = 6, height = 3, uni = "in")
+ggsave(filename = paste0(outdir, "/Rich_LUUI_Jung2_nopoly.pdf"), width = 6, height = 3, uni = "in")
 
 
 rm(pred_tab3, pred_tab4, resulta, resulta2)
@@ -222,7 +222,7 @@ ggplot(data = plot_data) +
         aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_richness_percNH_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_richness_percNH_jung2_nopoly.pdf"))
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr.te, plot_data, plot_data2)
 
@@ -316,7 +316,7 @@ ggplot(data = plot_data) +
        aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_richness_percNH_LU_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_richness_percNH_LU_jung2_nopoly.pdf"))
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr2, plot_data)
 
@@ -409,7 +409,7 @@ ggplot(data = plot_data) +
         aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_richness_percNH_UI_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_richness_percNH_UI_jung2_nopoly.pdf"))
 
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr2, plot_data)
@@ -511,7 +511,7 @@ ggplot(data = plot_data2)+
   theme(legend.position = "bottom", strip.background = element_rect(fill = NA, size = 0.2))
 
 
-ggsave(filename = paste0(outdir, "/Abundance_LUUI_Jung2.pdf"), width = 6, height = 3, uni = "in")
+ggsave(filename = paste0(outdir, "/Abundance_LUUI_Jung2_nopoly.pdf"), width = 6, height = 3, uni = "in")
 
 rm(pred_tab3, pred_tab4, resulta, resulta2, plot_data2)
 
@@ -592,7 +592,7 @@ ggplot(data = plot_data) +
         aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_jung2_nopoly.pdf"))
 
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr.te, plot_data)
@@ -689,7 +689,7 @@ ggplot(data = plot_data) +
         aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_LU_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_LU_jung2_nopoly.pdf"))
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr2, plot_data)
 
@@ -782,7 +782,7 @@ ggplot(data = plot_data) +
         aspect.ratio = 1) 
 
 
-ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_UI_jung2.pdf"))
+ggsave(filename = paste0(outdir, "/Plot_Abundance_percNH_UI_jung2_nopoly.pdf"))
 
 
 rm(pred_tab, pred_tab2, pred.sr, pred.sr2, plot_data)
