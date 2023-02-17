@@ -11,9 +11,9 @@
 # this tells the raster package to use more of the available RAM rather than 
 # moving files to disk. I kept getting full disk issues. This seems to have
 # fixed the problem. 
-options(rasterMaxMemory = 2e10)
 
 rm(list = ls())
+
 
 # libraries
 library(raster)
@@ -22,6 +22,15 @@ library(StatisticalModels)
 library(ggplot2)
 library(cowplot)
 library(dplyr)
+
+# options to help with memory issues
+rasterOptions() # take a look at current settings
+options(rasterMaxMemory = 5e10)
+options(rasterTmpTime = 2)
+rasterOptions(tmpdir = "D:/Alternative_tmpfiles_raster")
+
+
+removeTmpFiles()
 
 
 # directories
@@ -423,6 +432,7 @@ job_list <- abun_models[grep("nopoly", abun_models)]   # one trop and one temp f
   
   rm(final_abun_Jung, pred_temp, pred_trop)
   gc()
+  removeTmpFiles()
  }  
    
 
